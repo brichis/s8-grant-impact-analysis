@@ -78,10 +78,15 @@ class GrantResult:
 
 
 def _pivot_quantities(measured):
+    """One row per (contract, token) — a plain `contract` group-by would silently
+    collapse a two-sided pool's two legs (same contract address, different
+    token) into a single row via aggfunc='last'."""
     import pandas as pd
-    meta = (measured[["contract", "pool", "token", "type", "chain"]]
-            .drop_duplicates().set_index("contract"))
-    wide = measured.pivot_table(index="contract", columns="checkpoint",
+    measured = measured.copy()
+    measured["_key"] = measured["contract"] + "|" + measured["token"].astype(str)
+    meta = (measured[["_key", "contract", "pool", "token", "type", "chain"]]
+            .drop_duplicates().set_index("_key"))
+    wide = measured.pivot_table(index="_key", columns="checkpoint",
                                 values="quantity", aggfunc="last")
     return meta.join(wide)
 
@@ -96,17 +101,17 @@ def compute(config, measured, prices) -> GrantResult:
 
     contract_results = []
     total_attr = 0.0
-    for contract, row in wide.iterrows():
+    for _key, row in wide.iterrows():
         token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
         price_end = prices.get(token_key, {}).get("end", 0.0)
         q_start = float(row.get("start", 0.0) or 0.0)
         q_end = float(row.get("end", 0.0) or 0.0)
         dtvl = (q_end - q_start) * price_end
-        attr_pct = _contract_attribution(config, contract)
+        attr_pct = _contract_attribution(config, row["contract"])
         dtvl_attr = dtvl * attr_pct / 100.0
         total_attr += dtvl_attr
         contract_results.append(ContractResult(
-            contract=contract, pool=row["pool"], token=row["token"],
+            contract=row["contract"], pool=row["pool"], token=row["token"],
             type=row["type"], chain=row["chain"],
             quantity_start=round(q_start, 2), quantity_end=round(q_end, 2),
             price_end=round(price_end, 6), delta_tvl_usd=round(dtvl, 2),
@@ -122,7 +127,7 @@ def compute(config, measured, prices) -> GrantResult:
     at_snapshot = None
     if "snapshot" in set(measured["checkpoint"]):
         at_snapshot = 0.0
-        for contract, row in wide.iterrows():
+        for _key, row in wide.iterrows():
             token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
             p = prices.get(token_key, {})
             price_snap = p.get("snapshot", p.get("end", 0.0))
@@ -131,7 +136,7 @@ def compute(config, measured, prices) -> GrantResult:
             at_snapshot += (q_snap - q_start) * price_snap
 
     num = den = 0.0
-    for contract, row in wide.iterrows():
+    for _key, row in wide.iterrows():
         token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
         price_end = prices.get(token_key, {}).get("end", 0.0)
         q_end = float(row.get("end", 0.0) or 0.0)
@@ -141,7 +146,7 @@ def compute(config, measured, prices) -> GrantResult:
     retention = (num / den * 100.0) if den else None
 
     usd_level = 0.0
-    for contract, row in wide.iterrows():
+    for _key, row in wide.iterrows():
         token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
         p_start = prices.get(token_key, {}).get("start", 0.0)
         p_end = prices.get(token_key, {}).get("end", 0.0)
