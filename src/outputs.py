@@ -25,11 +25,8 @@ def write_contract_chart(result, out_dir: Path) -> Path:
 
 def write_checkpoint_chart(config, measured, prices, out_dir: Path) -> Path:
     """Grant-total ΔTVL at each checkpoint, end-date price."""
-    from metrics import _defillama_chain
-    wide = measured.pivot_table(index="contract", columns="checkpoint",
-                                values="quantity", aggfunc="last")
-    meta = measured[["contract", "chain", "token"]].drop_duplicates().set_index("contract")
-    wide = meta.join(wide)
+    from metrics import _defillama_chain, _pivot_quantities
+    wide = _pivot_quantities(measured)
 
     labels = [("M1 · snapshot (interim)", "snapshot"),
               ("M2 · incentive end", "end"),
@@ -46,6 +43,25 @@ def write_checkpoint_chart(config, measured, prices, out_dir: Path) -> Path:
             q = float(r.get(col, 0.0) or 0.0)
             total += (q - q0) * price_end
         rows.append({"Checkpoint": label, "ΔTVL (USD)": round(total)})
+    path = out_dir / "chart_delta_tvl_checkpoints.csv"
+    pd.DataFrame(rows).to_csv(path, index=False)
+    return path
+
+
+def write_global_checkpoint_chart(tvl: dict, out_dir: Path) -> Path:
+    """Global Scope equivalent of write_checkpoint_chart — same filename and
+    shape (Checkpoint, ΔTVL (USD)) so downstream Datawrapper usage doesn't
+    care which scope produced it. `tvl` is global_scope.tvl_at_checkpoints().
+    """
+    labels = [("M1 · snapshot (interim)", "snapshot"),
+              ("M2 · incentive end", "end"),
+              ("+30 days (post-incentive)", "plus30d")]
+    tvl_start = tvl.get("start")
+    rows = []
+    for label, col in labels:
+        if col not in tvl or tvl_start is None:
+            continue
+        rows.append({"Checkpoint": label, "ΔTVL (USD)": round(tvl[col] - tvl_start)})
     path = out_dir / "chart_delta_tvl_checkpoints.csv"
     pd.DataFrame(rows).to_csv(path, index=False)
     return path

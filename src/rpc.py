@@ -72,6 +72,9 @@ class ArchiveRPC:
                            None if tag == "latest" else f"{self.slug}:blk:{tag}")
         return int(block["number"], 16), int(block["timestamp"], 16)
 
+    def latest_block(self) -> int:
+        return self._block("latest")[0]
+
     def block_at(self, timestamp: int, block_time: float = 2.0) -> int:
         """Last block with block.timestamp <= `timestamp`."""
         cache_key = f"{self.slug}:at:{timestamp}"
@@ -103,6 +106,19 @@ class ArchiveRPC:
     def read(self, to: str, data: str, block: int) -> str:
         return self._call("eth_call", [{"to": to, "data": data}, hex(block)],
                           f"{self.slug}:call:{to}:{data}:{block}")
+
+    def logs(self, address: str, topics: list, from_block: int, to_block: int) -> list:
+        """Raw eth_getLogs. Alchemy's free tier caps the range to 10 blocks —
+        callers needing a wide historical search should locate a narrow block
+        first (e.g. binary search on state via `read`, which has no such cap)
+        rather than widen this call.
+        """
+        cache_key = (f"{self.slug}:logs:{address}:"
+                     f"{':'.join(t or '' for t in topics)}:{from_block}:{to_block}")
+        return self._call("eth_getLogs", [{
+            "address": address, "topics": topics,
+            "fromBlock": hex(from_block), "toBlock": hex(to_block),
+        }], cache_key)
 
     # ---- ERC-721 enumeration ----
     def venft_transfers(self, escrow: str, address: str, direction: str,
