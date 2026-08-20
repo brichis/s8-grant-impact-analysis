@@ -157,10 +157,23 @@ def load_grant(grant_id: str) -> GrantConfig:
     w = wmatch.iloc[0]
 
     scope = _read_tab("scope")
+    # The registry's contract-address column has been renamed at least once
+    # already (plain "contract_address" -> "contract_address / pool_id", once
+    # the scope tab started holding v4-style 32-byte PoolIds alongside normal
+    # addresses) — match by prefix so a hand-edited header tweak doesn't
+    # silently zero out every grant's Targeted Scope the way an exact-name
+    # lookup just did.
+    addr_cols = [c for c in scope.columns if c.strip().lower().startswith("contract_address")]
+    if len(addr_cols) != 1:
+        raise SystemExit(
+            f"Expected exactly one 'contract_address...' column in the scope "
+            f"tab, found {addr_cols}. Fix the column header or this lookup."
+        )
+    addr_col = addr_cols[0]
     smatch = scope[scope["grant_id"].astype(str).str.strip() == grant_id]
     scope_contracts = []
     for _, r in smatch.iterrows():
-        addr = _cell(r, "contract_address")
+        addr = _cell(r, addr_col)
         if isinstance(addr, str) and addr.strip():
             scope_contracts.append({
                 "chain": str(_cell(r, "chain") or "").strip(),

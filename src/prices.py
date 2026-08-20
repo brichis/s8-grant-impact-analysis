@@ -100,14 +100,20 @@ def fill_price_gaps(price_map: dict, measured: pd.DataFrame, checkpoints: dict) 
     Needed for protocols like PancakeSwap, whose DefiLlama entry carries an
     aggregate `tvl` for Base but empty `tokens`/`tokensInUsd` — there is
     nothing for price_series to derive a per-token price from. Resolves each
-    gap token's address via measure.TOKEN_ADDRESS, the same map used for the
-    on-chain reserve reads, so there is one place tokens get mapped to
-    addresses, not two.
+    gap token's address from `measured`'s own `address` column — the same
+    on-chain address measure.py already resolved for the reserve read itself
+    (via each token's real symbol(), not a hand-maintained table) — so there
+    is one place tokens get mapped to addresses, not two.
     """
-    from measure import TOKEN_ADDRESS
     from metrics import _defillama_chain
 
-    needed = measured[["chain", "token"]].drop_duplicates()
+    # A (chain, token) pair can appear in `measured` with a missing address
+    # (e.g. a pool-not-yet-created checkpoint, which reports quantity=0 with
+    # no resolved leg address) alongside rows that do have one — take any
+    # resolved address for that pair.
+    with_addr = measured.dropna(subset=["address"])
+    needed = with_addr[["chain", "token", "address"]].drop_duplicates(
+        subset=["chain", "token"])
     gaps = []  # [(defillama_chain_label, TOKEN, address)]
     for _, r in needed.iterrows():
         chain_label = _defillama_chain(r["chain"])
@@ -115,10 +121,7 @@ def fill_price_gaps(price_map: dict, measured: pd.DataFrame, checkpoints: dict) 
         have = price_map.get((chain_label, token), {})
         if set(checkpoints) <= set(have):
             continue
-        address = TOKEN_ADDRESS.get((chain_label, token))
-        if address is None:
-            continue  # no address either; leave for the existing error path
-        gaps.append((chain_label, token, address))
+        gaps.append((chain_label, token, r["address"]))
 
     if not gaps:
         return price_map
