@@ -16,8 +16,12 @@ state, dispatched by the `type` column in the scope tab:
     vault  — ERC-4626 lending vault. quantity = totalAssets() (underlying units).
     loan   — holds veNFTs as collateral. quantity = governance token locked
              across the veNFTs the contract owns (sum of locked(tokenId)).
-    pool   — AMM pool. quantity = the incentivized token's reserve held by the
-             pool (balanceOf on the token, or both reserves for a 2-sided view).
+    pool   — AMM pool ("pool", "pool (V3)", or "pool (Infinity)"). quantity =
+             the incentivized token's reserve(s). Standard v2/v3-style pools
+             read balanceOf(pool) directly; Uniswap-v4-style singleton pools
+             (32-byte PoolId instead of a pool contract) dispatch to
+             uniswap_v4.py or pancake_infinity.py depending on which
+             singleton deployment the pool belongs to.
 
 All reads are point-in-time at the last block of the checkpoint's UTC day, which
 is the correct tool for balances that include positions opened before the
@@ -29,10 +33,12 @@ rpc.py; this module only decides *what* to read for each contract type.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 
 import pandas as pd
 
+import pancake_infinity
 import uniswap_v4
 from rpc import ArchiveRPC, RPC_SLUG
 
@@ -40,6 +46,7 @@ from rpc import ArchiveRPC, RPC_SLUG
 TOTAL_ASSETS = "0x01e1d114"   # totalAssets()
 ASSET = "0x38d52e0f"          # asset()
 DECIMALS = "0x313ce567"       # decimals()
+SYMBOL = "0x95d89b41"         # symbol()
 LOCKED = "0xb45a3c0e"         # locked(uint256) -> (int128 amount, uint256 end)
 BALANCE_OF = "0x70a08231"     # balanceOf(address)
 TOKEN0 = "0x0dfe1681"          # token0() — v2/v3 pool sanity check
@@ -53,8 +60,8 @@ VE_ESCROW = {
 }
 
 # Registry chain labels -> the canonical labels used below (VE_ESCROW,
-# TOKEN_ADDRESS, RPC_SLUG all key off these, matching registry.py's
-# CHAIN_TO_DEFILLAMA convention).
+# RPC_SLUG, uniswap_v4/pancake_infinity's deployment dicts all key off these,
+# matching registry.py's CHAIN_TO_DEFILLAMA convention).
 CHAIN_LABEL = {"OP Mainnet": "Optimism"}
 
 
@@ -62,30 +69,55 @@ def _normalize_chain(chain: str) -> str:
     return CHAIN_LABEL.get(chain, chain)
 
 
-# Underlying token address per (chain, symbol), for `pool` reserve reads.
-# Extend as new pools are added to the registry; verify each against the block
-# explorer before trusting output that depends on it.
-TOKEN_ADDRESS = {
-    ("Base", "USDC"): "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-    ("Optimism", "USDC"): "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
-    ("Base", "CBBTC"): "0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf",
-    # OP Stack predeploys — identical address on every OP Stack chain, so these
-    # are safe to hardcode (no per-chain verification needed).
-    ("Optimism", "OP"): "0x4200000000000000000000000000000000000042",
-    ("Base", "OP"): "0x4200000000000000000000000000000000000042",
-    ("Optimism", "WETH"): "0x4200000000000000000000000000000000000006",
-    ("Optimism", "ETH"): "0x4200000000000000000000000000000000000006",  # pools hold WETH, not native ETH
-    ("Base", "WETH"): "0x4200000000000000000000000000000000000006",
-    ("Base", "ETH"): "0x4200000000000000000000000000000000000006",
-    # Confirmed by the grantee (Super DCA deployment notes), Optimism only.
-    ("Optimism", "DCA"): "0xb1599cde32181f48f89683d3c5db5c5d2c7c93cc",
-    ("Optimism", "WBTC"): "0x68f180fcce6836688e9084f035309e29bf0a2095",
-    #                          which one Super DCA's pool actually holds.
+# Registry pool labels vs. a token's own on-chain symbol() sometimes
+# legitimately differ (e.g. OP-Stack pools hold WETH, never native ETH, but
+# the registry still labels the leg "ETH"). Add entries here only for
+# confirmed, deliberate mismatches — not as a shortcut around verification.
+SYMBOL_ALIASES = {
+    "ETH": "WETH",
 }
 
 
 def _erc20_decimals(rpc: ArchiveRPC, token: str, block: int) -> int:
     return int(rpc.read(token, DECIMALS, block), 16)
+
+
+def _erc20_symbol(rpc: ArchiveRPC, token: str, block: int) -> str:
+    raw = rpc.read(token, SYMBOL, block)
+    data = bytes.fromhex(raw[2:])
+    if len(data) < 64:
+        raise SystemExit(
+            f"{token} symbol() returned unparseable data ({raw}) — not a "
+            f"standard string-returning ERC20."
+        )
+    length = int.from_bytes(data[32:64], "big")
+    return data[64:64 + length].decode("utf-8", errors="replace").strip("\x00")
+
+
+def _match_label_to_currency(rpc: ArchiveRPC, label: str, currencies: list[str],
+                             block: int) -> str:
+    """Match a registry pool-label token (e.g. 'USDC') to one of a pool's
+    actual on-chain currencies, by reading each currency's own symbol().
+
+    Replaces a hand-maintained symbol->address table: with pools being added
+    to the registry continuously, pre-populating and block-explorer-verifying
+    one address per new token symbol doesn't scale, and is exactly the kind
+    of manual step that's easy to get wrong silently. Reading the pool's own
+    currencies and matching by their real symbol() verifies itself every run.
+    """
+    wanted = SYMBOL_ALIASES.get(label.upper(), label.upper())
+    found = {}
+    for addr in currencies:
+        sym = _erc20_symbol(rpc, addr, block).upper()
+        found[sym] = addr
+        if sym == wanted:
+            return addr
+    raise SystemExit(
+        f"Pool label token '{label}' (on-chain symbol '{wanted}') doesn't "
+        f"match either of this pool's currencies: {found}. If the registry "
+        f"label and the token's real symbol() legitimately differ, add a "
+        f"SYMBOL_ALIASES entry in measure.py."
+    )
 
 
 def measure_vault(rpc: ArchiveRPC, address: str, block: int) -> tuple[float, str]:
@@ -149,33 +181,35 @@ def _verify_pool_contract(rpc: ArchiveRPC, address: str, block: int) -> None:
             )
 
 
-def measure_pool_reserve(rpc: ArchiveRPC, pool_address: str, chain: str,
-                         token_symbol: str, block: int) -> float:
+def measure_pool_reserve(rpc: ArchiveRPC, pool_address: str, token: str,
+                         block: int) -> float:
     """Incentivized token's reserve held by an AMM pool: balanceOf(pool).
 
     Uses the token's balance held by the pool contract, which is the reserve for
     that side. Works for any standard AMM without needing pool-specific ABIs.
+    `token` is the token's own contract address, already resolved (see
+    _match_label_to_currency) — this function does no symbol lookup itself.
     """
-    key = (chain, token_symbol.upper())
-    token = TOKEN_ADDRESS.get(key)
-    if token is None:
-        raise SystemExit(
-            f"No token address mapped for {key}. Add it to TOKEN_ADDRESS in "
-            f"measure.py (find it on the block explorer)."
-        )
     decimals = _erc20_decimals(rpc, token, block)
     arg = pool_address[2:].rjust(64, "0")
     raw = rpc.read(token, BALANCE_OF + arg, block)
     return int(raw, 16) / 10 ** decimals
 
 
+# Registry `pool` labels for V3-style pools carry a trailing fee tier, e.g.
+# "EURC-USDC 0.01%" — strip it before splitting into legs.
+_FEE_SUFFIX = re.compile(r"\s+[\d.]+%$")
+
+
 def _split_pool_label(pool_label: str) -> list[str]:
-    """'cbBTC-USDC' -> ['CBBTC', 'USDC']. Two-sided pools are measured on both
-    legs (both reserves), which is standard pool-TVL semantics and requires no
-    change to the S8 formula — each leg is just another term in the same
-    per-contract sum. A one-sided label (no '-') returns a single-element list.
+    """'cbBTC-USDC' -> ['CBBTC', 'USDC']; 'USDC/DAI' -> ['USDC', 'DAI'] (Hydrex
+    uses '/' instead of '-'). Two-sided pools are measured on both legs (both
+    reserves), which is standard pool-TVL semantics and requires no change to
+    the S8 formula — each leg is just another term in the same per-contract
+    sum. A one-sided label (no separator) returns a single-element list.
     """
-    return [t.strip().upper() for t in pool_label.split("-") if t.strip()]
+    label = _FEE_SUFFIX.sub("", pool_label.strip())
+    return [t.strip().upper() for t in re.split(r"[-/]", label) if t.strip()]
 
 
 def _token_symbol(pool_label: str) -> str:
@@ -202,8 +236,8 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
     ctype = contract["type"]
 
     if ctype == "vault":
-        quantity, _asset = measure_vault(rpc, contract["address"], block)
-        return {"quantity": quantity, "block": block}
+        quantity, asset = measure_vault(rpc, contract["address"], block)
+        return {"quantity": quantity, "block": block, "address": asset}
 
     if ctype == "lend":
         # UNVERIFIED: assumes the same ERC-4626 interface as `vault`
@@ -212,8 +246,8 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
         # against each contract's ABI on the block explorer before trusting
         # Extrafi output. If a contract doesn't implement totalAssets(), this
         # will raise (RPC read failure) rather than silently returning 0.
-        quantity, _asset = measure_vault(rpc, contract["address"], block)
-        return {"quantity": quantity, "block": block}
+        quantity, asset = measure_vault(rpc, contract["address"], block)
+        return {"quantity": quantity, "block": block, "address": asset}
 
     if ctype == "loan":
         chain = _normalize_chain(contract["chain"])
@@ -224,42 +258,60 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
             rpc, escrow, contract["address"], block)
         return {"quantity": quantity, "block": block, "nfts": nfts}
 
-    if ctype == "pool":
+    if ctype.startswith("pool"):
         # Two-sided pools are measured on both legs (both reserves) and summed
         # — standard pool-TVL semantics, no change to the S8 formula itself.
+        # `type` values seen: "pool" (bare — Super DCA's v4 pools), "pool
+        # (V3)", "pool (Infinity)". The parenthetical, when present, picks
+        # the protocol; address shape (32-byte PoolId vs. 20-byte contract)
+        # is the fail-loud backstop, not the primary signal.
         chain = _normalize_chain(contract["chain"])
+        address = contract["address"]
         labels = _split_pool_label(contract["pool"])
+        is_infinity = "infinity" in ctype.lower()
 
-        if uniswap_v4.is_pool_id(contract["address"]):
-            reserves = uniswap_v4.pool_reserves(rpc, chain, contract["address"], block)
+        if is_infinity or uniswap_v4.is_pool_id(address):
+            if not uniswap_v4.is_pool_id(address):
+                raise SystemExit(
+                    f"{address} is typed '{ctype}' but isn't a 32-byte "
+                    f"PoolId — check the registry row."
+                )
+            module = pancake_infinity if is_infinity else uniswap_v4
+            reserves = module.pool_reserves(rpc, chain, address, block)
+            currencies = list(reserves)
             legs = {}
+            leg_addresses = {}
             for label in labels:
-                expected = TOKEN_ADDRESS.get((chain, label))
-                if expected is None:
-                    raise SystemExit(
-                        f"No token address mapped for {(chain, label)}. Add it "
-                        f"to TOKEN_ADDRESS in measure.py."
-                    )
-                match = next((a for a in reserves
-                             if a.lower() == expected.lower()), None)
-                if match is None:
-                    raise SystemExit(
-                        f"Pool {contract['address'][:10]}… labelled "
-                        f"'{contract['pool']}' expects {label} "
-                        f"({expected}) but the pool's actual currencies are "
-                        f"{list(reserves)} — the registry label may not match "
-                        f"this PoolId."
-                    )
-                decimals = _erc20_decimals(rpc, expected, block)
+                match = _match_label_to_currency(rpc, label, currencies, block)
+                decimals = _erc20_decimals(rpc, match, block)
                 legs[label] = reserves[match] / 10 ** decimals
-            return {"legs": legs, "block": block}
+                leg_addresses[label] = match
+            return {"legs": legs, "leg_addresses": leg_addresses, "block": block}
 
-        _verify_pool_contract(rpc, contract["address"], block)
-        legs = {
-            token: measure_pool_reserve(rpc, contract["address"], chain, token, block)
-            for token in labels
-        }
-        return {"legs": legs, "block": block}
+        if not rpc.has_code(address, block):
+            if rpc.has_code(address, rpc.latest_block()):
+                # Pool created partway through the grant window — it
+                # genuinely didn't exist yet at this checkpoint, so its
+                # reserves genuinely were zero (not an unknown value). Same
+                # handling as pancake_infinity.pool_reserves for the
+                # equivalent Infinity case.
+                return {"legs": {label: 0.0 for label in labels},
+                        "leg_addresses": {}, "block": block}
+            raise SystemExit(
+                f"{address} has no contract code at block {block} or at the "
+                f"current chain head — not a valid pool address."
+            )
+
+        _verify_pool_contract(rpc, address, block)
+        token0 = "0x" + rpc.read(address, TOKEN0, block)[-40:]
+        token1 = "0x" + rpc.read(address, TOKEN1, block)[-40:]
+        legs = {}
+        leg_addresses = {}
+        for label in labels:
+            match = _match_label_to_currency(rpc, label, [token0, token1], block)
+            legs[label] = measure_pool_reserve(rpc, address, match, block)
+            leg_addresses[label] = match
+        return {"legs": legs, "leg_addresses": leg_addresses, "block": block}
 
     raise SystemExit(
         f"Unknown scope type '{ctype}' for {contract['address'][:10]}. "
@@ -271,7 +323,9 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
     """Measure every scope contract at every checkpoint.
 
     Returns a tidy frame: contract, pool, token, type, chain, checkpoint, date,
-    quantity (+ nfts for loan rows). A two-sided `pool` contract contributes one
+    quantity, address (the token's own on-chain contract address — used by
+    prices.py to fill DefiLlama price gaps without a second symbol->address
+    table) (+ nfts for loan rows). A two-sided `pool` contract contributes one
     row per leg (per token), all sharing the same `contract` address — metrics.py
     groups by (contract, token), not contract alone, so legs don't collide.
     """
@@ -300,11 +354,13 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
             result = measure_contract(rpc, contract, day)
 
             if "legs" in result:
+                leg_addresses = result.get("leg_addresses", {})
                 for token, quantity in result["legs"].items():
                     rows.append({
                         "contract": contract["address"],
                         "pool": contract["pool"],
                         "token": token,
+                        "address": leg_addresses.get(token),
                         "type": contract["type"],
                         "chain": contract["chain"],
                         "checkpoint": label,
@@ -319,6 +375,7 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
                 "contract": contract["address"],
                 "pool": contract["pool"],
                 "token": _token_symbol(contract["pool"]),
+                "address": result.get("address"),
                 "type": contract["type"],
                 "chain": contract["chain"],
                 "checkpoint": label,

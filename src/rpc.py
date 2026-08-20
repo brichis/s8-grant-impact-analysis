@@ -47,10 +47,20 @@ class ArchiveRPC:
         if cache_key and cache_key in self.cache:
             return self.cache[cache_key]
         for attempt in range(5):
-            body = requests.post(
-                self.url, timeout=45,
-                json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
-            ).json()
+            try:
+                body = requests.post(
+                    self.url, timeout=45,
+                    json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+                ).json()
+            except requests.exceptions.RequestException:
+                # Transient network hiccups (read timeouts, connection resets)
+                # shouldn't kill a long scan that's tens of minutes in — retry
+                # with backoff the same as a rate-limit response, rather than
+                # losing all progress since the last flush().
+                if attempt == 4:
+                    raise
+                time.sleep(1.5 * (attempt + 1))
+                continue
             if "result" in body:
                 if cache_key:
                     self.cache[cache_key] = body["result"]
@@ -59,7 +69,75 @@ class ArchiveRPC:
                 time.sleep(1.5 * (attempt + 1))
                 continue
             raise RuntimeError(f"{self.slug} RPC error: {body.get('error')}")
-        raise RuntimeError(f"{self.slug}: rate-limited repeatedly")
+        raise RuntimeError(f"{self.slug}: rate-limited/network-flaky repeatedly")
+
+    def call_batch(self, calls: list[tuple[str, list, str | None]]) -> list:
+        """Multiple eth JSON-RPC calls in one HTTP round trip (a JSON-RPC
+        batch request — every major provider, including Alchemy, supports
+        this). Returns results in the same order as `calls`. Cache hits are
+        served locally and never sent; only the misses go over the wire.
+
+        This exists because a handful of read paths (PancakeSwap Infinity's
+        tick-bitmap scan, in particular) need thousands of independent
+        eth_call reads at the same block — one HTTP round trip each was both
+        slow (tens of minutes) and fragile (a single transient timeout partway
+        through loses all unflushed progress). Batching cuts both the wall
+        time and the number of chances for a network hiccup to hit.
+        """
+        results: list = [None] * len(calls)
+        pending: list[tuple[int, str, list, str | None]] = []
+        for i, (method, params, cache_key) in enumerate(calls):
+            if cache_key and cache_key in self.cache:
+                results[i] = self.cache[cache_key]
+            else:
+                pending.append((i, method, params, cache_key))
+
+        BATCH_SIZE = 40
+        for start in range(0, len(pending), BATCH_SIZE):
+            chunk = pending[start:start + BATCH_SIZE]
+            payload = [
+                {"jsonrpc": "2.0", "id": i, "method": method, "params": params}
+                for i, method, params, _ in chunk
+            ]
+            for attempt in range(6):
+                try:
+                    resp = requests.post(self.url, timeout=60, json=payload).json()
+                except requests.exceptions.RequestException:
+                    if attempt == 5:
+                        raise
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                by_id = {r.get("id"): r for r in resp} if isinstance(resp, list) else {}
+                errors = [r for r in by_id.values() if "result" not in r]
+                # Alchemy's per-second compute-unit cap surfaces as a 429
+                # with "exceeded its compute units per second capacity" in
+                # the message, not the word "rate" — match broadly rather
+                # than the exact wording of one provider's error.
+                if errors and any(
+                    e.get("error", {}).get("code") == 429
+                    or any(w in str(e.get("error", "")).lower()
+                           for w in ("rate", "capacity", "compute unit"))
+                    for e in errors
+                ):
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                if len(by_id) != len(chunk):
+                    raise RuntimeError(
+                        f"{self.slug}: batch call returned {len(by_id)} results "
+                        f"for {len(chunk)} requests — {resp}"
+                    )
+                for i, _method, _params, cache_key in chunk:
+                    r = by_id[i]
+                    if "result" not in r:
+                        raise RuntimeError(f"{self.slug} RPC error: {r.get('error')}")
+                    results[i] = r["result"]
+                    if cache_key:
+                        self.cache[cache_key] = r["result"]
+                break
+            else:
+                raise RuntimeError(f"{self.slug}: rate-limited/network-flaky repeatedly")
+            time.sleep(0.15)  # stay under the per-second compute-unit cap proactively
+        return results
 
     def flush(self):
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -106,6 +184,16 @@ class ArchiveRPC:
     def read(self, to: str, data: str, block: int) -> str:
         return self._call("eth_call", [{"to": to, "data": data}, hex(block)],
                           f"{self.slug}:call:{to}:{data}:{block}")
+
+    def has_code(self, address: str, block: int) -> bool:
+        """Whether `address` has contract code deployed at `block` — used to
+        tell "not a pool" apart from "not deployed yet" (a pool created
+        partway through a grant window has no code at an earlier checkpoint,
+        which is a different situation from an address that will never be
+        a pool)."""
+        code = self._call("eth_getCode", [address, hex(block)],
+                          f"{self.slug}:code:{address}:{block}")
+        return code not in (None, "0x", "0x0")
 
     def logs(self, address: str, topics: list, from_block: int, to_block: int) -> list:
         """Raw eth_getLogs. Alchemy's free tier caps the range to 10 blocks —

@@ -18,22 +18,28 @@ totalAssets) over the grant window is not Oku's impact — it's everyone's.
 
 This script measures the same Sigma(qty_end - qty_start) x price_end formula
 as the rest of the pipeline, but scoped to just the wallets Oku itself paid
-out incentives to (from the grantee's payout CSV) rather than to the whole
-vault. For each wallet: vault shares (balanceOf) at incentive_start and
-incentive_end, each converted to underlying USDC via convertToAssets() at
-that same block (share price moves over time, so the conversion must use the
-block-matched rate). This is a deliberate, disclosed Targeted-Scope variant
-(cohort-scoped instead of contract-scoped) for grantees with no dedicated
-contract of their own -- not a change to the S8 formula, window, or the
-per-contract default used everywhere else in the registry.
+out incentives to, rather than to the whole vault. For each wallet: vault
+shares (balanceOf) at incentive_start and incentive_end, each converted to
+underlying USDC via convertToAssets() at that same block (share price moves
+over time, so the conversion must use the block-matched rate). This is a
+deliberate, disclosed Targeted-Scope variant (cohort-scoped instead of
+contract-scoped) for grantees with no dedicated contract of their own -- not
+a change to the S8 formula, window, or the per-contract default used
+everywhere else in the registry.
+
+The wallet cohort itself comes from the registry's own `oku` tab (id,
+wallet_address, date, Paid?, OP_Amount_Received) -- the registry is the only
+hand-maintained input everywhere else in this pipeline, and this script
+follows the same rule rather than reading a locally-downloaded payout CSV.
 
 Usage:
     export ALCHEMY_KEY=...
-    python scripts/oku_wallet_cohort.py "/path/to/Optimism Morpho Campaign Payouts.csv"
+    python scripts/oku_wallet_cohort.py
 """
 
 from __future__ import annotations
 
+import io
 import sys
 import time
 from pathlib import Path
@@ -45,7 +51,7 @@ from dotenv import load_dotenv
 load_dotenv()
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from registry import _read_tab, _to_date  # noqa: E402
+from registry import GVIZ_URL, SHEET_ID, _read_tab, _to_date  # noqa: E402
 from rpc import ArchiveRPC, RPC_SLUG  # noqa: E402
 
 GRANT_ID = "APP-SJI1PDNL-Z0UTM9"
@@ -130,11 +136,34 @@ def _has_code(rpc: ArchiveRPC, address: str, block: int) -> bool:
     return code not in (None, "0x", "0x0")
 
 
-def main() -> None:
-    if len(sys.argv) != 2:
-        raise SystemExit(f"Usage: python {sys.argv[0]} <payouts.csv>")
-    csv_path = Path(sys.argv[1])
+def _fetch_oku_wallets() -> pd.DataFrame:
+    """The registry's `oku` tab: id, wallet_address, date, Paid?,
+    OP_Amount_Received. Same live-Google-Sheet-as-CSV pattern as
+    registry._read_tab, but anchored on 'wallet_address' rather than
+    'grant_id' for header detection -- this tab has no grant_id column,
+    it's one grant's own recipient list, not a cross-grant tab.
+    """
+    url = GVIZ_URL.format(sheet_id=SHEET_ID, tab="oku")
+    text = requests.get(url, timeout=60).text
+    if text.lstrip().startswith("<"):
+        raise SystemExit(
+            "Registry tab 'oku' returned HTML, not CSV — check the tab name "
+            "or sharing settings."
+        )
+    lines = text.splitlines()
+    header_row = next(
+        (i for i, line in enumerate(lines) if "wallet_address" in line.lower()), None
+    )
+    if header_row is None:
+        raise SystemExit("No 'wallet_address' column found in the registry's 'oku' tab.")
+    frame = pd.read_csv(io.StringIO("\n".join(lines[header_row:])), dtype=str)
+    frame.columns = [c.strip() for c in frame.columns]
+    if frame["wallet_address"].dropna().empty:
+        raise SystemExit("Registry 'oku' tab has a wallet_address column but no rows.")
+    return frame
 
+
+def main() -> None:
     # load_grant() requires a defillama_slug (used for the normal per-contract
     # pipeline's price series) which Oku's registry row doesn't have — its
     # "oku-trade" value is in the oso_slug column, a different data source,
@@ -152,11 +181,12 @@ def main() -> None:
     print(f"Oku (Optimism User Acquisition) ({GRANT_ID})")
     print(f"window: {incentive_start} -> {incentive_end}")
 
-    df = pd.read_csv(csv_path)
+    df = _fetch_oku_wallets()
     wallets = sorted({w.strip().lower() for w in df["wallet_address"].dropna()})
-    print(f"{len(wallets)} unique wallets in payout list "
-          f"({(df['Paid?'] == True).sum()} marked Paid=TRUE by Oku — not "
-          f"relied on here; every wallet is checked on-chain independently)")
+    paid_true = (df["Paid?"].astype(str).str.strip().str.upper() == "TRUE").sum()
+    print(f"{len(wallets)} unique wallets in the registry's 'oku' tab "
+          f"({paid_true} marked Paid=TRUE by Oku — not relied on here; every "
+          f"wallet is checked on-chain independently)")
 
     rpc = ArchiveRPC(RPC_SLUG["Optimism"], RPC_CACHE)
     block_start = rpc.block_at(_end_of_day_ts(incentive_start))

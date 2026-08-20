@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""S8 grant impact analysis — 40acres pilot (Targeted Scope).
+"""S8 grant impact analysis (Targeted Scope).
 
 Registry in, per-contract S8 ΔTVL out. Every quantity is read directly from the
 incentivized contracts; prices come from DefiLlama; nothing a grantee
 self-reported is an input.
 
     export ALCHEMY_KEY=...          # archive-capable RPC (needed: reads are on-chain)
-    python run.py                   # 40acres, default
+    python run.py                   # default grant (40acres)
     python run.py APP-XXXX-XXXX     # any grant_id whose scope tab is filled
     python run.py APP-XXXX-XXXX --global   # Global Scope instead of Targeted
 
