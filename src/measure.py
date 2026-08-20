@@ -38,6 +38,7 @@ from datetime import date
 
 import pandas as pd
 
+import extrafi
 import pancake_infinity
 import uniswap_v4
 from rpc import ArchiveRPC, RPC_SLUG
@@ -240,13 +241,11 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
         return {"quantity": quantity, "block": block, "address": asset}
 
     if ctype == "lend":
-        # UNVERIFIED: assumes the same ERC-4626 interface as `vault`
-        # (asset()/totalAssets()). Extrafi lists two products (XLend, LYF)
-        # under this type and they may not share one interface — confirm
-        # against each contract's ABI on the block explorer before trusting
-        # Extrafi output. If a contract doesn't implement totalAssets(), this
-        # will raise (RPC read failure) rather than silently returning 0.
-        quantity, asset = measure_vault(rpc, contract["address"], block)
+        # Extrafi's two lending products (XLend, LYF) are architecturally
+        # unrelated to each other and to the ERC-4626 `vault` type -- see
+        # extrafi.py for the two interfaces and how they're told apart
+        # on-chain (not from the registry, which doesn't distinguish them).
+        quantity, asset = extrafi.measure_lend(rpc, contract["address"], block)
         return {"quantity": quantity, "block": block, "address": asset}
 
     if ctype == "loan":

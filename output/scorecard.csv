@@ -1,2 +1,2 @@
-grant_id,grantee,window,scope,delta_tvl_attributed_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
-APP-HX8QVFXW-RXYI7I,Hydrex,2026-01-03 -> 2026-02-23,Targeted (per-contract),-371394.35,,,,,,,-177499.3,33.6,-323486.23,-694880.59
+grant_id,grantee,window,scope,chains,tvl_start_usd,tvl_end_usd,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,tvl_at_snapshot_usd,delta_tvl_at_snapshot_usd,retention_30d_pct
+APP-0A6ZP40D-82XHOP,Super DCA,2025-11-16 -> 2026-03-12,Global (protocol-wide),"['Optimism', 'Unichain', 'Ink']",0,1685,1685,,,,,,,1802,1802,99.3

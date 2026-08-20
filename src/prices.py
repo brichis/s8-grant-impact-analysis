@@ -52,21 +52,38 @@ def _frame(rows):
     return f.set_index("day").sort_index()
 
 
+# DefiLlama's own chainTvls object doesn't use one consistent key for a given
+# chain across every protocol's payload -- most protocols use "Optimism", but
+# at least one (Extrafi) uses "OP Mainnet" for the exact same chain. Try the
+# canonical name first, then any known alias, before giving up.
+CHAIN_KEY_ALIASES = {"Optimism": ["OP Mainnet"]}
+
+
+def _resolve_chain_key(chain: str, available: list) -> str | None:
+    if chain in available:
+        return chain
+    for alias in CHAIN_KEY_ALIASES.get(chain, []):
+        if alias in available:
+            return alias
+    return None
+
+
 def price_series(payload: dict, defillama_chains: list) -> pd.DataFrame:
     """Long frame: day, chain, token, price (from tokensInUsd / tokens)."""
     available = list(payload.get("chainTvls", {}))
-    missing = [c for c in defillama_chains if c not in available]
+    resolved = {c: _resolve_chain_key(c, available) for c in defillama_chains}
+    missing = [c for c, key in resolved.items() if key is None]
     if missing:
         raise SystemExit(f"Chain(s) {missing} absent from DefiLlama. "
                          f"Present: {available}")
     frames = []
-    for chain in defillama_chains:
-        cd = payload["chainTvls"][chain]
+    for chain, payload_key in resolved.items():
+        cd = payload["chainTvls"][payload_key]
         q = _frame(cd["tokens"]).stack().rename("quantity")
         u = _frame(cd["tokensInUsd"]).stack().rename("usd")
         m = pd.concat([q, u], axis=1).reset_index()
         m.columns = ["day", "token", "quantity", "usd"]
-        m["chain"] = chain
+        m["chain"] = chain  # canonical label, not the payload's own key
         frames.append(m)
     df = pd.concat(frames, ignore_index=True)
     df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce")
