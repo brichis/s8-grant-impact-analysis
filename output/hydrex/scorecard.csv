@@ -1,0 +1,2 @@
+grant_id,grantee,window,scope,delta_tvl_attributed_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+APP-HX8QVFXW-RXYI7I,Hydrex,2026-01-03 -> 2026-02-23,Targeted (per-contract),-371394.35,1500000.0,,False,,50000.0,-7.43,-177499.3,33.6,-323486.23,-694880.59
