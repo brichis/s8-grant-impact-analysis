@@ -26,6 +26,7 @@ Supplementary context (S7-derived, labelled non-S8): retention +30d, price-qty w
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -43,16 +44,19 @@ from registry import load_grant  # noqa: E402
 
 DEFAULT_GRANT = "APP-CS0S7GDN-MR3JI7"
 BASE = Path(__file__).parent
-OUT_DIR = BASE / "output"
+OUT_BASE = BASE / "output"
 RAW_DIR = BASE / "data"
 RPC_CACHE = RAW_DIR / "rpc_cache.json"
+
+
+def _slugify(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
 def main() -> None:
     args = sys.argv[1:]
     grant_id = next((a for a in args if a.startswith("APP-")), DEFAULT_GRANT)
     use_global = "--global" in args
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print("[1/4] Registry…")
     config = load_grant(grant_id)
@@ -63,6 +67,12 @@ def main() -> None:
     print(f"      window: {config.incentive_start} → {config.incentive_end} "
           f"(snapshot {config.snapshot})")
 
+    # One subdirectory per grantee — output/ used to be a single shared
+    # directory that every run overwrote, so only the most-recently-run
+    # grant's numbers ever survived. Charts need all grants' output at once.
+    OUT_DIR = OUT_BASE / _slugify(config.grantee)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
     checkpoints = {"start": config.incentive_start,
                    "snapshot": config.snapshot,
                    "end": config.incentive_end,
@@ -70,7 +80,7 @@ def main() -> None:
     checkpoints = {k: v for k, v in checkpoints.items() if v is not None}
 
     if use_global:
-        run_global(config, checkpoints)
+        run_global(config, checkpoints, OUT_DIR)
         return
 
     print("[2/4] Measuring scope contracts on-chain (archive reads, cached)…")
@@ -114,11 +124,12 @@ def main() -> None:
         print(f"      {p.relative_to(BASE)}")
 
     # DefiLlama quantity cross-check (independent of the on-chain reads)
-    measured.to_csv(OUT_DIR / "measured_quantities.csv", index=False)
-    print(f"      output/measured_quantities.csv  (cross-check vs DefiLlama)")
+    measured_path = OUT_DIR / "measured_quantities.csv"
+    measured.to_csv(measured_path, index=False)
+    print(f"      {measured_path.relative_to(BASE)}  (cross-check vs DefiLlama)")
 
 
-def run_global(config, checkpoints: dict) -> None:
+def run_global(config, checkpoints: dict, OUT_DIR: Path) -> None:
     print("[2/4] Skipping on-chain reads (Global Scope needs none)…")
     print("[3/4] TVL from DefiLlama…")
     payload = pricing.fetch_protocol(config.defillama_slug, raw_dir=RAW_DIR)

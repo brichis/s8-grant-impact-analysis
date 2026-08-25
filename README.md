@@ -69,7 +69,9 @@ python run.py                 # default grant (40acres)
 python run.py APP-XXXX-XXXX   # any grant whose scope tab is filled
 ```
 
-Outputs in `output/`:
+Outputs go to `output/<grantee-slug>/` — one subdirectory per grantee (e.g.
+`output/pancakeswap/`), so running a different grant never overwrites another
+grant's numbers:
 
 | File | Contents |
 |---|---|
@@ -78,6 +80,8 @@ Outputs in `output/`:
 | `table_contracts.csv` | per-contract qty_start / qty_end / price / ΔTVL |
 | `scorecard.csv` | one-row grant summary |
 | `measured_quantities.csv` | raw per-contract reads (cross-check vs DefiLlama) |
+
+(Global Scope runs only write `scorecard.csv` and `chart_delta_tvl_checkpoints.csv` — there are no per-contract reads to report.)
 
 ## Repository layout
 
