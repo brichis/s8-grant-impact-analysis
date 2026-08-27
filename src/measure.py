@@ -76,6 +76,7 @@ def _normalize_chain(chain: str) -> str:
 # confirmed, deliberate mismatches — not as a shortcut around verification.
 SYMBOL_ALIASES = {
     "ETH": "WETH",
+    "USDT0": "USD₮0",
 }
 
 
@@ -127,6 +128,19 @@ def measure_vault(rpc: ArchiveRPC, address: str, block: int) -> tuple[float, str
     decimals = _erc20_decimals(rpc, asset, block)
     raw = rpc.read(address, TOTAL_ASSETS, block)
     return int(raw, 16) / 10 ** decimals, asset
+
+
+def _try_erc4626(rpc: ArchiveRPC, address: str, block: int) -> tuple[float, str] | None:
+    """None if `address` doesn't implement asset() -- used purely for `lend`
+    architecture detection (see measure_contract), where a revert just means
+    "not this one", not an error."""
+    try:
+        raw = rpc.read(address, ASSET, block)
+    except RuntimeError:
+        return None
+    if not raw or raw in ("0x", "0x" + "0" * 64):
+        return None
+    return measure_vault(rpc, address, block)
 
 
 def measure_loan_collateral(rpc: ArchiveRPC, escrow: str, loan_address: str,
@@ -202,14 +216,21 @@ def measure_pool_reserve(rpc: ArchiveRPC, pool_address: str, token: str,
 _FEE_SUFFIX = re.compile(r"\s+[\d.]+%$")
 
 
+_POOL_TYPE_PREFIX = re.compile(r"^(CL\d+|sAMM|vAMM)-", re.IGNORECASE)
+
+
 def _split_pool_label(pool_label: str) -> list[str]:
     """'cbBTC-USDC' -> ['CBBTC', 'USDC']; 'USDC/DAI' -> ['USDC', 'DAI'] (Hydrex
-    uses '/' instead of '-'). Two-sided pools are measured on both legs (both
-    reserves), which is standard pool-TVL semantics and requires no change to
-    the S8 formula — each leg is just another term in the same per-contract
-    sum. A one-sided label (no separator) returns a single-element list.
+    uses '/' instead of '-'); 'CL100-USDC/WETH' -> ['USDC', 'WETH'] (Velodrome
+    prefixes CL pools with a tick-spacing tag and stable/volatile pools with
+    'sAMM-'/'vAMM-' — stripped before splitting so it isn't mistaken for a
+    third leg). Two-sided pools are measured on both legs (both reserves),
+    which is standard pool-TVL semantics and requires no change to the S8
+    formula — each leg is just another term in the same per-contract sum. A
+    one-sided label (no separator) returns a single-element list.
     """
     label = _FEE_SUFFIX.sub("", pool_label.strip())
+    label = _POOL_TYPE_PREFIX.sub("", label)
     return [t.strip().upper() for t in re.split(r"[-/]", label) if t.strip()]
 
 
@@ -235,16 +256,36 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
     """Measure one scope contract's incentivized token quantity on a date."""
     block = rpc.block_at(_end_of_day_ts(day))
     ctype = contract["type"]
+    address = contract["address"]
+
+    if ctype in ("vault", "lend", "loan") and not rpc.has_code(address, block):
+        if rpc.has_code(address, rpc.latest_block()):
+            # Contract created partway through the grant window -- it
+            # genuinely didn't exist yet at this checkpoint, so its quantity
+            # genuinely was zero (not an unknown value). Same handling as the
+            # `pool` branch below for a pool created mid-window.
+            return {"quantity": 0.0, "block": block, "address": None}
+        raise SystemExit(
+            f"{address} has no contract code at block {block} or at the "
+            f"current chain head -- not a valid {ctype} address."
+        )
 
     if ctype == "vault":
         quantity, asset = measure_vault(rpc, contract["address"], block)
         return {"quantity": quantity, "block": block, "address": asset}
 
     if ctype == "lend":
-        # Extrafi's two lending products (XLend, LYF) are architecturally
-        # unrelated to each other and to the ERC-4626 `vault` type -- see
-        # extrafi.py for the two interfaces and how they're told apart
-        # on-chain (not from the registry, which doesn't distinguish them).
+        # `lend` spans lending markets from more than one grantee, with
+        # unrelated on-chain shapes the registry `type` column doesn't
+        # distinguish: Curve LlamaLend's market is a plain ERC-4626 vault
+        # (same interface as the `vault` type above), while Extrafi's
+        # XLend/LYF are not ERC-4626 at all -- see extrafi.py for those two
+        # interfaces and how they're told apart. Detected by interface probe,
+        # ERC-4626 tried first since it's the cheaper, single-call check.
+        erc4626 = _try_erc4626(rpc, contract["address"], block)
+        if erc4626 is not None:
+            quantity, asset = erc4626
+            return {"quantity": quantity, "block": block, "address": asset}
         quantity, asset = extrafi.measure_lend(rpc, contract["address"], block)
         return {"quantity": quantity, "block": block, "address": asset}
 
@@ -277,13 +318,22 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
                 )
             module = pancake_infinity if is_infinity else uniswap_v4
             reserves = module.pool_reserves(rpc, chain, address, block)
-            currencies = list(reserves)
+            remaining = list(reserves)
             legs = {}
             leg_addresses = {}
             for label in labels:
-                match = _match_label_to_currency(rpc, label, currencies, block)
+                # Match against the currencies not yet claimed by an earlier
+                # label in this same pool — needed for pools where both legs
+                # share a symbol (e.g. a legacy-bridged token that never
+                # updated its on-chain symbol() off "USDC"), so the second
+                # label doesn't re-match the first leg's currency and drop
+                # the other leg's reserve silently. Same-label legs (that
+                # really are the same token symbol) are summed, not
+                # overwritten — both price at the same token's price anyway.
+                match = _match_label_to_currency(rpc, label, remaining, block)
+                remaining = [c for c in remaining if c != match]
                 decimals = _erc20_decimals(rpc, match, block)
-                legs[label] = reserves[match] / 10 ** decimals
+                legs[label] = legs.get(label, 0.0) + reserves[match] / 10 ** decimals
                 leg_addresses[label] = match
             return {"legs": legs, "leg_addresses": leg_addresses, "block": block}
 
@@ -304,11 +354,16 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
         _verify_pool_contract(rpc, address, block)
         token0 = "0x" + rpc.read(address, TOKEN0, block)[-40:]
         token1 = "0x" + rpc.read(address, TOKEN1, block)[-40:]
+        remaining = [token0, token1]
         legs = {}
         leg_addresses = {}
         for label in labels:
-            match = _match_label_to_currency(rpc, label, [token0, token1], block)
-            legs[label] = measure_pool_reserve(rpc, address, match, block)
+            # See the matching v4/Infinity branch above for why matching is
+            # done against `remaining` (not the full pair) and legs are
+            # summed rather than overwritten.
+            match = _match_label_to_currency(rpc, label, remaining, block)
+            remaining = [c for c in remaining if c != match]
+            legs[label] = legs.get(label, 0.0) + measure_pool_reserve(rpc, address, match, block)
             leg_addresses[label] = match
         return {"legs": legs, "leg_addresses": leg_addresses, "block": block}
 

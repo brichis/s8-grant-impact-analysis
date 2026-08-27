@@ -1,0 +1,2 @@
+grant_id,grantee,window,scope,delta_tvl_attributed_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+APP-LZT0D77C-HTHMFT,Velodrome Finance,2026-02-10 -> 2026-08-26,Targeted (per-contract),-1286071.5,3200000.0,8000000.0,False,False,760000.0,-1.69,3864211.53,101.0,2094645.13,808573.6

@@ -27,6 +27,19 @@ RPC_SLUG = {
     "OP Mainnet": "opt-mainnet",
     "Optimism": "opt-mainnet",
     "Base": "base-mainnet",
+    "Unichain": "unichain-mainnet",
+    "Ink": "ink-mainnet",
+    "Soneium": "soneium-mainnet",
+}
+
+# block_at's search step assumes ~2s blocks (true for OP Mainnet/Base/Soneium);
+# Unichain and Ink run ~1s blocks, measured live via eth_getBlockByNumber over
+# a 10k-block window — a wrong estimate here doesn't return a wrong answer
+# (block_at still converges on the exact boundary block), it just may not
+# converge within the fixed iteration budget.
+BLOCK_TIME = {
+    "unichain-mainnet": 1.0,
+    "ink-mainnet": 1.0,
 }
 
 
@@ -39,6 +52,7 @@ class ArchiveRPC:
             raise SystemExit("ALCHEMY_KEY not set (required for on-chain reads).")
         self.url = f"https://{slug}.g.alchemy.com/v2/{key}"
         self.slug = slug
+        self.block_time = BLOCK_TIME.get(slug, 2.0)
         self.cache_path = Path(cache_path)
         self.cache = (json.loads(self.cache_path.read_text())
                       if self.cache_path.exists() else {})
@@ -153,8 +167,9 @@ class ArchiveRPC:
     def latest_block(self) -> int:
         return self._block("latest")[0]
 
-    def block_at(self, timestamp: int, block_time: float = 2.0) -> int:
+    def block_at(self, timestamp: int, block_time: float | None = None) -> int:
         """Last block with block.timestamp <= `timestamp`."""
+        block_time = block_time if block_time is not None else self.block_time
         cache_key = f"{self.slug}:at:{timestamp}"
         if cache_key in self.cache:
             return self.cache[cache_key]
