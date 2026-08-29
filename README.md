@@ -53,6 +53,15 @@ Start = actual grant delivery, but that was flagged as ambiguous in governance
 (GFXlabs, Jan 2026), which recommended anchoring to when execution began. We
 adopt that reading as a deliberate, disclosed choice.
 
+**Still-running grants.** When the registry's incentive-end date is today or
+later, the incentive is treated as ongoing (the windows tab's end "proof" for
+these is a live dashboard, not an end announcement). The `end` checkpoint is
+then read at the last fully-elapsed UTC day — an **interim** measurement,
+labelled as such in the window string and console output — and the
+supplementary +30d retention metric is omitted because the window hasn't
+closed. Another disclosed choice, like the execution-start reading of the
+window's start.
+
 **Prices** come from DefiLlama (token price on each checkpoint date); its token
 quantities also serve as an independent cross-check on the on-chain reads.
 

@@ -6,7 +6,9 @@ Primary metric — the S8 TVL formula, applied to each scope contract and summed
 
   * quantities come from measure.py (direct chain-state reads of each contract)
   * price_end is the token's price on the end date, from DefiLlama
-  * start = incentive start, end = min(incentive end, S8 end)
+  * start = incentive start, end = min(incentive end, S8 end); for a grant
+    whose incentive is still running, end = the last fully-elapsed day and the
+    result is an interim measurement (see registry.measurement_end)
 
 Attribution under Targeted Scope is simpler than under Global Scope: because we
 measure only the incentivized contracts, there is no protocol-wide over-count to
@@ -135,15 +137,20 @@ def compute(config, measured, prices) -> GrantResult:
             q_snap = float(row.get("snapshot", 0.0) or 0.0)
             at_snapshot += (q_snap - q_start) * price_snap
 
-    num = den = 0.0
-    for _key, row in wide.iterrows():
-        token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
-        price_end = prices.get(token_key, {}).get("end", 0.0)
-        q_end = float(row.get("end", 0.0) or 0.0)
-        q_stick = float(row.get("plus30d", 0.0) or 0.0)
-        num += q_stick * price_end
-        den += q_end * price_end
-    retention = (num / den * 100.0) if den else None
+    # Retention needs an actual +30d read. For a still-running grant run.py
+    # omits that checkpoint entirely — treat it as "not measured" (None), not
+    # as 0% retention, which a plain `row.get("plus30d", 0.0)` would produce.
+    retention = None
+    if "plus30d" in set(measured["checkpoint"]):
+        num = den = 0.0
+        for _key, row in wide.iterrows():
+            token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
+            price_end = prices.get(token_key, {}).get("end", 0.0)
+            q_end = float(row.get("end", 0.0) or 0.0)
+            q_stick = float(row.get("plus30d", 0.0) or 0.0)
+            num += q_stick * price_end
+            den += q_end * price_end
+        retention = (num / den * 100.0) if den else None
 
     usd_level = 0.0
     for _key, row in wide.iterrows():
@@ -158,7 +165,9 @@ def compute(config, measured, prices) -> GrantResult:
 
     return GrantResult(
         grant_id=config.grant_id, grantee=config.grantee,
-        window=f"{config.incentive_start} -> {config.incentive_end}",
+        window=(f"{config.incentive_start} -> {config.measurement_end}"
+                + (f" (incentive ongoing, scheduled end {config.incentive_end})"
+                   if config.incentive_ongoing else "")),
         scope="Targeted (per-contract)", contracts=contract_results,
         delta_tvl_attributed_usd=round(total_attr, 2),
         target_milestone1=config.target_milestone1,

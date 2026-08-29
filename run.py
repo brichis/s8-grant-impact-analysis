@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -64,8 +65,14 @@ def main() -> None:
     scope_note = ("Global (protocol-wide)" if use_global
                   else f"Targeted, {len(config.scope_contracts)} contracts")
     print(f"      scope: {scope_note}")
-    print(f"      window: {config.incentive_start} → {config.incentive_end} "
+    window_end = config.measurement_end if config.incentive_ongoing else config.incentive_end
+    print(f"      window: {config.incentive_start} → {window_end} "
           f"(snapshot {config.snapshot})")
+    if config.incentive_ongoing:
+        print(f"      ⚠ incentive still running — registry end "
+              f"{config.incentive_end} is scheduled, not proven. INTERIM "
+              f"measurement as of {config.measurement_end}; +30d retention "
+              f"omitted (window not closed).")
 
     # One subdirectory per grantee — output/ used to be a single shared
     # directory that every run overwrote, so only the most-recently-run
@@ -73,10 +80,16 @@ def main() -> None:
     OUT_DIR = OUT_BASE / _slugify(config.grantee)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # `plus30d` needs a window that has closed *and* 30 days elapsed since —
+    # otherwise the read would land past chain head and rpc.block_at would
+    # (before its guard) have silently returned today's state. Drop it rather
+    # than report a retention figure the window can't support yet.
+    include_plus30d = (not config.incentive_ongoing
+                       and config.stickiness_end <= date.today())
     checkpoints = {"start": config.incentive_start,
                    "snapshot": config.snapshot,
-                   "end": config.incentive_end,
-                   "plus30d": config.stickiness_end}
+                   "end": config.measurement_end,
+                   "plus30d": config.stickiness_end if include_plus30d else None}
     checkpoints = {k: v for k, v in checkpoints.items() if v is not None}
 
     if use_global:
@@ -113,7 +126,10 @@ def main() -> None:
     if result.delta_tvl_at_snapshot_usd is not None:
         print(f"  Interim M1 @ snapshot: ${result.delta_tvl_at_snapshot_usd:,.0f} "
               f"(honest-baseline side note)")
-    print(f"  Supplementary — retention +30d: {result.retention_30d_pct}% · "
+    retention = (f"{result.retention_30d_pct}%"
+                 if result.retention_30d_pct is not None
+                 else "n/a (window not closed)")
+    print(f"  Supplementary — retention +30d: {retention} · "
           f"price-qty wedge: ${result.price_qty_wedge_usd:,.0f}")
 
     print("\n[4/4] Writing outputs…")
