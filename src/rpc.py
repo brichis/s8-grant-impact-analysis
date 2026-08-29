@@ -175,6 +175,19 @@ class ArchiveRPC:
             return self.cache[cache_key]
         head_num, head_ts = self._block("latest")
         if timestamp >= head_ts:
+            # Seconds/minutes past head = clock skew or a checkpoint landing on
+            # "today" — clamp to head. Hours past head means a genuinely future
+            # checkpoint date reached this far, which must not happen (run.py
+            # measures a still-running grant only up to the last elapsed day —
+            # see registry.measurement_end). Fail loud rather than silently
+            # returning today's state as if it were a future reading.
+            if timestamp - head_ts > 3600:
+                raise RuntimeError(
+                    f"{self.slug}: block_at got a timestamp "
+                    f"{(timestamp - head_ts) / 86400:.1f} days past chain head "
+                    f"— a checkpoint date in the future? Still-running grants "
+                    f"must measure only up to the last elapsed day."
+                )
             return head_num
         guess = max(1, head_num - int((head_ts - timestamp) / block_time))
         for _ in range(15):

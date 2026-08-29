@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import requests
@@ -140,6 +140,28 @@ class GrantConfig:
     def stickiness_end(self) -> date:
         """Incentive end + 30 days, for the supplementary retention metric."""
         return self.incentive_end + pd.Timedelta(days=30).to_pytimedelta()
+
+    @property
+    def incentive_ongoing(self) -> bool:
+        """True when the registry's incentive_end is today or later — the
+        program has not demonstrably closed yet. The registry end date is a
+        schedule, not a proof: for a still-running grant the windows tab's
+        `proof_incentive_end_date` points at a live dashboard, not an end
+        announcement. Such a grant is measured as interim (see
+        `measurement_end`) rather than reading a not-yet-final "end"."""
+        return self.incentive_end >= date.today()
+
+    @property
+    def measurement_end(self) -> date:
+        """The date the `end` checkpoint is actually read at: normally the
+        incentive end, but for a still-running grant the last fully-elapsed
+        UTC day — a complete-day snapshot at a block that exists and DefiLlama
+        has a price for, instead of a partial current day that rpc.block_at
+        would silently clamp to chain head. See metrics.py:
+        end = min(incentive end, this)."""
+        if self.incentive_ongoing:
+            return date.today() - timedelta(days=1)
+        return self.incentive_end
 
 
 def load_grant(grant_id: str) -> GrantConfig:
