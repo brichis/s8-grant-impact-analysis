@@ -7,8 +7,8 @@ the more rigorous option in the S8 methodology (Step 1, "Targeted Scope"):
     "If the grant targets specific pools limit the TVL measurement to those pools."
 
 Because we measure only what was incentivized, there is nothing to proportion
-away afterwards — attribution reduces to a per-contract co-incentive flag rather
-than a protocol-wide proration.
+away afterwards, and no attribution step: the measured change already belongs to
+the incentivized contracts.
 
 Each contract's token quantity at a given block is read directly from chain
 state, dispatched by the `type` column in the scope tab:
@@ -33,7 +33,6 @@ rpc.py; this module only decides *what* to read for each contract type.
 
 from __future__ import annotations
 
-import re
 from datetime import date
 
 import pandas as pd
@@ -52,6 +51,7 @@ LOCKED = "0xb45a3c0e"         # locked(uint256) -> (int128 amount, uint256 end)
 BALANCE_OF = "0x70a08231"     # balanceOf(address)
 TOKEN0 = "0x0dfe1681"          # token0() — v2/v3 pool sanity check
 TOKEN1 = "0xd21220a7"          # token1()
+ESCROW_TOKEN = "0xfc0c546a"    # token() — a VotingEscrow's governance token
 
 # Voting-escrow contracts that custody `loan` collateral, per chain.
 # Confirm each against the block explorer before relying on the output.
@@ -213,43 +213,97 @@ def measure_pool_reserve(rpc: ArchiveRPC, pool_address: str, token: str,
 
 # Registry `pool` labels for V3-style pools carry a trailing fee tier, e.g.
 # "EURC-USDC 0.01%" — strip it before splitting into legs.
-_FEE_SUFFIX = re.compile(r"\s+[\d.]+%$")
+def _scope_tokens(contract: dict) -> list[str]:
+    """The registry's token symbols for a scope row, uppercased.
 
-
-_POOL_TYPE_PREFIX = re.compile(r"^(CL\d+|sAMM|vAMM)-", re.IGNORECASE)
-
-
-def _split_pool_label(pool_label: str) -> list[str]:
-    """'cbBTC-USDC' -> ['CBBTC', 'USDC']; 'USDC/DAI' -> ['USDC', 'DAI'] (Hydrex
-    uses '/' instead of '-'); 'CL100-USDC/WETH' -> ['USDC', 'WETH'] (Velodrome
-    prefixes CL pools with a tick-spacing tag and stable/volatile pools with
-    'sAMM-'/'vAMM-' — stripped before splitting so it isn't mistaken for a
-    third leg). Two-sided pools are measured on both legs (both reserves),
-    which is standard pool-TVL semantics and requires no change to the S8
-    formula — each leg is just another term in the same per-contract sum. A
-    one-sided label (no separator) returns a single-element list.
+    One column per token, so there is nothing to parse: the fee-tier suffix,
+    the CL/sAMM prefix and the '-' vs '/' separator that the old single-label
+    format needed three regexes to strip now live in `pool_details`, which is
+    never read as data. Two-sided pools return both legs and are measured on
+    both reserves — standard pool-TVL semantics, and no change to the S8
+    formula, since each leg is just another term in the same per-contract sum.
     """
-    label = _FEE_SUFFIX.sub("", pool_label.strip())
-    label = _POOL_TYPE_PREFIX.sub("", label)
-    return [t.strip().upper() for t in re.split(r"[-/]", label) if t.strip()]
+    return [t.upper() for t in (contract["token0"], contract["token1"]) if t]
 
 
-def _token_symbol(pool_label: str) -> str:
-    """The token whose price values this contract.
+def format_quantity(q: float) -> str:
+    """Token amount for console output, with enough precision to stay true.
 
-    For veNFT loan collateral the pool label is 've<TOKEN>'; the priced token is
-    the underlying (veVELO -> VELO). For vaults/pools the label is already the
-    token symbol.
+    A fixed 0-decimal format printed every BTC-denominated balance as "0":
+    0.37 tBTC is ~$29k, not nothing, and a screen full of zeros reads as a
+    broken run rather than a small one. Scale the precision to the magnitude.
     """
-    label = pool_label.strip()
-    if label.lower().startswith("ve") and len(label) > 2:
-        return label[2:].upper()
-    return label.upper()
+    if q == 0:
+        return "0"
+    if abs(q) >= 1000:
+        return f"{q:,.0f}"
+    if abs(q) >= 1:
+        return f"{q:,.2f}"
+    return f"{q:.4g}"
 
 
 def _end_of_day_ts(day: date) -> int:
     return int(pd.Timestamp(day).replace(
         hour=23, minute=59, second=59).to_pydatetime().timestamp())
+
+
+def _verify_underlying(rpc: ArchiveRPC, contract: dict, underlying: str,
+                       block: int) -> str:
+    """Check a vault/lend/loan row's registry tokens against the underlying's
+    own on-chain symbol(), and return that symbol.
+
+    The `pool` path verifies its tokens this way already (see
+    _match_label_to_currency); the single-token types did not, and a
+    mislabelled row was silently mispriced rather than caught: Truemarkets'
+    vault was labelled `TYD` while its asset() is Base USDC, so the USDC
+    quantity was valued at TYD's price. Nothing failed — DefiLlama happened to
+    publish a TYD price for that protocol, so the wrong number looked entirely
+    plausible.
+
+    A `lend` row may name both sides of a lending market rather than one token
+    (Curve LlamaLend's wstETH / USDC is collateral / borrowed, and only the
+    borrowed leg is the vault's asset), so matching either column counts.
+
+    The returned symbol — not the registry label — is what the caller prices
+    the quantity by, so the value measured and the price applied always refer
+    to the same token.
+    """
+    symbol = _erc20_symbol(rpc, underlying, block).upper()
+    wanted = {SYMBOL_ALIASES.get(t, t) for t in _scope_tokens(contract)}
+    if symbol in wanted:
+        return symbol
+    raise SystemExit(
+        f"Registry tokens {sorted(wanted)} don't match this contract's "
+        f"underlying: {underlying} reports symbol() '{symbol}'. The quantity "
+        f"measured is {symbol}, so pricing it as {sorted(wanted)} would value "
+        f"the wrong token. Set the scope row's token0 to '{symbol}' (or add a "
+        f"SYMBOL_ALIASES entry in measure.py if the two legitimately differ)."
+    )
+
+
+def _underlying_token(rpc: ArchiveRPC, contract: dict, block: int) -> str:
+    """Address of the token a single-token scope row measures, at `block`.
+
+    Split out so a checkpoint that predates the contract's deployment can still
+    name its token by resolving it at the chain head: which token a contract
+    measures never changes, only how much of it there is.
+    """
+    ctype = contract["type"]
+    if ctype == "loan":
+        escrow = VE_ESCROW.get(_normalize_chain(contract["chain"]))
+        if escrow is None:
+            raise SystemExit(
+                f"No veNFT escrow mapped for {contract['chain']} in measure.py.")
+        return "0x" + rpc.read(escrow, ESCROW_TOKEN, block)[-40:]
+    erc4626 = _try_erc4626(rpc, contract["address"], block)
+    if erc4626 is not None:
+        return erc4626[1]
+    if ctype == "lend":
+        return extrafi.measure_lend(rpc, contract["address"], block)[1]
+    raise SystemExit(
+        f"{contract['address']} is typed '{ctype}' but implements no asset() — "
+        f"cannot resolve which token it measures."
+    )
 
 
 def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
@@ -259,12 +313,22 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
     address = contract["address"]
 
     if ctype in ("vault", "lend", "loan") and not rpc.has_code(address, block):
-        if rpc.has_code(address, rpc.latest_block()):
+        latest = rpc.latest_block()
+        if rpc.has_code(address, latest):
             # Contract created partway through the grant window -- it
             # genuinely didn't exist yet at this checkpoint, so its quantity
             # genuinely was zero (not an unknown value). Same handling as the
             # `pool` branch below for a pool created mid-window.
-            return {"quantity": 0.0, "block": block, "address": None}
+            #
+            # The token still has to be named, and named identically to the
+            # other checkpoints: metrics.py keys rows by (contract, token), so
+            # a checkpoint that reported a different token here would split one
+            # contract into two rows each missing half its checkpoints, and
+            # every figure derived from them would come out NaN. Resolve it at
+            # the chain head, where the contract does exist.
+            asset = _underlying_token(rpc, contract, latest)
+            return {"quantity": 0.0, "block": block, "address": asset,
+                    "token": _verify_underlying(rpc, contract, asset, latest)}
         raise SystemExit(
             f"{address} has no contract code at block {block} or at the "
             f"current chain head -- not a valid {ctype} address."
@@ -272,7 +336,9 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
 
     if ctype == "vault":
         quantity, asset = measure_vault(rpc, contract["address"], block)
-        return {"quantity": quantity, "block": block, "address": asset}
+        symbol = _verify_underlying(rpc, contract, asset, block)
+        return {"quantity": quantity, "block": block, "address": asset,
+                "token": symbol}
 
     if ctype == "lend":
         # `lend` spans lending markets from more than one grantee, with
@@ -285,18 +351,37 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
         erc4626 = _try_erc4626(rpc, contract["address"], block)
         if erc4626 is not None:
             quantity, asset = erc4626
-            return {"quantity": quantity, "block": block, "address": asset}
+            symbol = _verify_underlying(rpc, contract, asset, block)
+            return {"quantity": quantity, "block": block, "address": asset,
+                    "token": symbol}
         quantity, asset = extrafi.measure_lend(rpc, contract["address"], block)
-        return {"quantity": quantity, "block": block, "address": asset}
+        symbol = _verify_underlying(rpc, contract, asset, block)
+        return {"quantity": quantity, "block": block, "address": asset,
+                "token": symbol}
 
     if ctype == "loan":
         chain = _normalize_chain(contract["chain"])
         escrow = VE_ESCROW.get(chain)
         if escrow is None:
             raise SystemExit(f"No veNFT escrow mapped for {chain} in measure.py.")
+        # What is measured is governance token locked inside veNFTs, so the
+        # token that prices it is the escrow's own underlying. Read it from the
+        # escrow (verified: token() returns VELO on Optimism, AERO on Base)
+        # rather than inferring it by stripping "ve" off the registry label —
+        # same rule as everywhere else here, the chain is the source of truth.
+        gov_token = "0x" + rpc.read(escrow, ESCROW_TOKEN, block)[-40:]
+        symbol = _erc20_symbol(rpc, gov_token, block).upper()
+        registry_tokens = set(_scope_tokens(contract))
+        if symbol not in registry_tokens and f"VE{symbol}" not in registry_tokens:
+            raise SystemExit(
+                f"Scope row tokens {sorted(registry_tokens)} don't match the "
+                f"escrow's governance token: {gov_token} reports symbol() "
+                f"'{symbol}'. Set token0 to '{symbol}' or 've{symbol}'."
+            )
         quantity, nfts = measure_loan_collateral(
             rpc, escrow, contract["address"], block)
-        return {"quantity": quantity, "block": block, "nfts": nfts}
+        return {"quantity": quantity, "block": block, "nfts": nfts,
+                "address": gov_token, "token": symbol}
 
     if ctype.startswith("pool"):
         # Two-sided pools are measured on both legs (both reserves) and summed
@@ -307,7 +392,7 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
         # is the fail-loud backstop, not the primary signal.
         chain = _normalize_chain(contract["chain"])
         address = contract["address"]
-        labels = _split_pool_label(contract["pool"])
+        labels = _scope_tokens(contract)
         is_infinity = "infinity" in ctype.lower()
 
         if is_infinity or uniswap_v4.is_pool_id(address):
@@ -402,7 +487,7 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
     rows = []
     for contract in config.scope_contracts:
         rpc = rpc_for(contract["chain"])
-        print(f"  {contract['type']:<5} {contract['pool']:<8} "
+        print(f"  {contract['type']:<5} {contract['label']:<20} "
               f"{contract['address'][:10]}… ({contract['chain']})")
         for label, day in checkpoints.items():
             result = measure_contract(rpc, contract, day)
@@ -412,7 +497,7 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
                 for token, quantity in result["legs"].items():
                     rows.append({
                         "contract": contract["address"],
-                        "pool": contract["pool"],
+                        "pool": contract["label"],
                         "token": token,
                         "address": leg_addresses.get(token),
                         "type": contract["type"],
@@ -421,14 +506,17 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
                         "date": day.isoformat(),
                         "quantity": quantity,
                     })
-                legs_str = ", ".join(f"{t}={q:,.0f}" for t, q in result["legs"].items())
+                legs_str = ", ".join(f"{t}={format_quantity(q)}"
+                                     for t, q in result["legs"].items())
                 print(f"      {label:<10} {day}  {legs_str}")
                 continue
 
             row = {
                 "contract": contract["address"],
-                "pool": contract["pool"],
-                "token": _token_symbol(contract["pool"]),
+                "pool": contract["label"],
+                # the underlying's real on-chain symbol (see _verify_underlying),
+                # falling back to the registry token for types that resolve none
+                "token": result.get("token") or _scope_tokens(contract)[0],
                 "address": result.get("address"),
                 "type": contract["type"],
                 "chain": contract["chain"],
@@ -440,5 +528,6 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
                 row["nfts"] = result["nfts"]
             rows.append(row)
             extra = f", {result['nfts']} NFTs" if "nfts" in result else ""
-            print(f"      {label:<10} {day}  qty={result['quantity']:,.0f}{extra}")
+            print(f"      {label:<10} {day}  "
+                  f"qty={format_quantity(result['quantity'])}{extra}")
     return pd.DataFrame(rows)

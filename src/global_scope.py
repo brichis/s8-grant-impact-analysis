@@ -5,9 +5,9 @@
 Unlike Targeted Scope (measure.py + metrics.py), this needs no on-chain reads
 at all: DefiLlama already publishes a protocol-wide TVL-in-USD series per
 chain (chainTvls[chain].tvl), so ΔTVL is just that series' value at each
-checkpoint date, summed across the grant's chains. Same window, attribution,
-and supplementary-metric conventions as Targeted Scope — only the quantity
-being measured changes, from per-contract token deltas to protocol-wide TVL.
+checkpoint date, summed across the grant's chains. Same window and
+supplementary-metric conventions as Targeted Scope — only the quantity being
+measured changes, from per-contract token deltas to protocol-wide TVL.
 
 Use this when Targeted Scope's on-chain reads aren't viable for a grant (e.g.
 the read tooling a pool type needs didn't exist yet at the grant's dates) — a
@@ -100,13 +100,16 @@ def compute(config, tvl: dict) -> GlobalScopeResult:
     tvl_stick = tvl.get("plus30d")
     retention = (tvl_stick / tvl_end * 100.0) if (tvl_stick is not None and tvl_end) else None
 
-    m1_met = (delta >= config.target_milestone1) if config.target_milestone1 else None
+    # M1 is judged at the snapshot and M2 at the end -- same rule as
+    # metrics.compute; see the comment there.
+    m1_met = (None if delta_snap is None or not config.target_milestone1
+              else delta_snap >= config.target_milestone1)
     total_met = (delta >= config.target_total) if config.target_total else None
     usd_per_op = (delta / config.budget_op) if config.budget_op else None
 
     return GlobalScopeResult(
         grant_id=config.grant_id, grantee=config.grantee,
-        window=f"{config.incentive_start} -> {config.incentive_end}",
+        window=config.window_label,
         scope="Global (protocol-wide)", chains=config.defillama_chains,
         tvl_start_usd=round(tvl_start, 2), tvl_end_usd=round(tvl_end, 2),
         delta_tvl_usd=round(delta, 2),

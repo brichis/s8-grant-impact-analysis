@@ -16,7 +16,7 @@ import pandas as pd
 
 
 def write_contract_chart(result, out_dir: Path) -> Path:
-    rows = [{"Contract": f"{c.pool} ({c.chain})", "ΔTVL (USD)": round(c.delta_tvl_attributed_usd)}
+    rows = [{"Contract": f"{c.pool} ({c.chain})", "ΔTVL (USD)": round(c.delta_tvl_usd)}
             for c in result.contracts]
     path = out_dir / "chart_delta_tvl_by_contract.csv"
     pd.DataFrame(rows).to_csv(path, index=False)

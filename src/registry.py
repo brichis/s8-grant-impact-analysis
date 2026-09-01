@@ -4,13 +4,10 @@ Loads one grant's configuration from the S8 grants registry (a Google Sheet
 exported live as CSV). The registry is the only hand-maintained input; every
 other number in the pipeline is fetched from a public source.
 
-Scope model: **Global Scope** (per the S8 methodology, Step 1). We measure the
-protocol-wide token change, limited to the chains the grant targets. We do not
-enumerate individual pools. This is the sanctioned lighter-weight option in the
-framework:
-
-    "If the grant targets the entire protocol use the protocol-wide change."
-    — S8 Impact Measurement Methodology, Step 1 (Global Scope)
+This module serves both scopes, so it reads what each needs: the `scope` tab's
+per-contract rows for Targeted Scope (the default), and the grant's chain list
+for Global Scope (`--global`). Which one a run uses is decided in run.py, not
+here.
 
 Window: **incentive start -> incentive end**. The methodology's literal text says
 Start = "Date of Actual Grant Delivery", but that term was flagged as ambiguous
@@ -22,9 +19,11 @@ choice, not the literal-delivery default.
 
 from __future__ import annotations
 
+import csv
 import io
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from urllib.parse import quote
 
 import pandas as pd
 import requests
@@ -44,29 +43,72 @@ CHAIN_TO_DEFILLAMA = {
 }
 
 
-def _read_tab(tab: str) -> pd.DataFrame:
-    """Read one sheet tab as a DataFrame.
-
-    Tabs may carry totals/notes rows above the real header (the `grantees` tab
-    does), and gviz picks its own header row, so we locate the header by finding
-    the line that contains `grant_id` rather than assuming a fixed position.
-    """
-    url = GVIZ_URL.format(sheet_id=SHEET_ID, tab=tab)
+def _fetch_rows(tab: str, headers: int | None) -> list[list[str]]:
+    """One gviz CSV fetch, parsed into rows. `headers` maps to gviz's own
+    `headers` parameter; None omits it (gviz then guesses)."""
+    url = GVIZ_URL.format(sheet_id=SHEET_ID, tab=quote(tab))
+    if headers is not None:
+        url += f"&headers={headers}"
     text = requests.get(url, timeout=60).text
     if text.lstrip().startswith("<"):
         raise SystemExit(
             f"Tab '{tab}' returned HTML, not CSV. Set the sheet to "
             f"'Anyone with the link can view', or check the tab name."
         )
-    lines = text.splitlines()
-    header_row = next(
-        (i for i, line in enumerate(lines) if "grant_id" in line.lower()), None
-    )
-    if header_row is None:
-        raise SystemExit(f"No 'grant_id' column found in tab '{tab}'.")
-    frame = pd.read_csv(io.StringIO("\n".join(lines[header_row:])), dtype=str)
-    frame.columns = [str(c).strip() for c in frame.columns]
-    return frame
+    return list(csv.reader(io.StringIO(text)))
+
+
+def _read_tab(tab: str) -> pd.DataFrame:
+    """Read one sheet tab as a DataFrame, working around two gviz behaviours
+    that each silently corrupt the result in a different direction.
+
+    1. Left to guess, gviz decides for itself how many leading rows are header
+       and *space-joins* them into the column labels. It guessed 10 for the
+       `scope` tab (the first nine rows have an empty `pool_details`), folding
+       nine real contracts into the header — unrecoverably, since the join is
+       by space and values like "OP Mainnet" contain one. Passing `headers=1`
+       states there is exactly one header row and stops the guessing.
+
+    2. gviz also infers a type per column and blanks any cell that doesn't
+       match it — including the header text above a numeric or date column.
+       Under `headers=1` that costs `grantees` the labels for
+       budget_total_op / target_milestone1 / target_total and `windows` its
+       date columns, which `_cell` would then read as absent, i.e. None,
+       without complaint. The data rows themselves are unaffected.
+
+    So: rows come from the `headers=1` fetch, and any label it blanked is
+    recovered from the default fetch, which types nothing away. A recovered
+    label is only trusted if it contains no space — that is exactly what
+    distinguishes a real column name from one of case 1's folded labels.
+    """
+    rows = _fetch_rows(tab, headers=1)
+    if not rows:
+        raise SystemExit(f"Tab '{tab}' came back empty.")
+    labels = [c.strip() for c in rows[0]]
+    data = rows[1:]
+
+    if not all(labels):
+        for i, label in enumerate(_fetch_rows(tab, headers=None)[0]):
+            label = label.strip()
+            if i < len(labels) and not labels[i] and label and " " not in label:
+                labels[i] = label
+    if not all(labels):
+        raise SystemExit(
+            f"Tab '{tab}' has unnamed column(s) at position(s) "
+            f"{[i for i, l in enumerate(labels) if not l]} — {labels}. Give "
+            f"every column a header; a blank one reads as a missing column."
+        )
+
+    width = len(labels)
+    bad = [i for i, r in enumerate(data, 2) if len(r) != width]
+    if bad:
+        raise SystemExit(
+            f"Tab '{tab}': row(s) {bad[:5]} have a different column count than "
+            f"the {width} headers — the export is malformed."
+        )
+    frame = pd.DataFrame(data, columns=labels, dtype=str)
+    # gviz gives an absent cell as ""; the rest of this module tests for None.
+    return frame.replace("", None)
 
 
 def _cell(row, column):
@@ -126,30 +168,48 @@ class GrantConfig:
     # window (incentive execution period)
     incentive_start: date
     snapshot: date | None
-    incentive_end: date
-
-    # attribution (S8 Steps 3-4). 40acres has no co-incentives -> 100%, uncapped.
-    attribution_pct: float = 100.0
-    attribution_cap_usd_per_op: float | None = None
-    co_incentives: str | None = None
+    # None when the windows tab's incentive_end_date is blank, which is how the
+    # registry records "still running, no end announced" — see incentive_ongoing.
+    incentive_end: date | None
 
     # optional on-chain verification targets (registry `scope` tab)
     scope_contracts: list[dict] = field(default_factory=list)
 
     @property
-    def stickiness_end(self) -> date:
-        """Incentive end + 30 days, for the supplementary retention metric."""
+    def stickiness_end(self) -> date | None:
+        """Incentive end + 30 days, for the supplementary retention metric.
+        None while the incentive has no end date — there is no window to
+        measure 30 days past yet."""
+        if self.incentive_end is None:
+            return None
         return self.incentive_end + pd.Timedelta(days=30).to_pytimedelta()
 
     @property
     def incentive_ongoing(self) -> bool:
-        """True when the registry's incentive_end is today or later — the
-        program has not demonstrably closed yet. The registry end date is a
-        schedule, not a proof: for a still-running grant the windows tab's
-        `proof_incentive_end_date` points at a live dashboard, not an end
-        announcement. Such a grant is measured as interim (see
-        `measurement_end`) rather than reading a not-yet-final "end"."""
-        return self.incentive_end >= date.today()
+        """True when the incentive has not demonstrably closed.
+
+        A blank incentive_end_date is the registry's way of saying "still
+        running, no end announced" — the honest state for a grant whose team
+        never published an end date. It is deliberately NOT filled with a
+        placeholder such as today's date: that has to be re-edited daily, and
+        the moment it goes stale the grant silently reads as finished and
+        publishes a final measurement of a still-running program.
+
+        A future end date (a real, announced schedule) also counts as ongoing.
+        Either way the grant is measured as interim — see `measurement_end`."""
+        return self.incentive_end is None or self.incentive_end >= date.today()
+
+    @property
+    def window_label(self) -> str:
+        """The window as reported in scorecards. Says plainly when a result is
+        interim and why, so a still-running grant can never be mistaken for a
+        closed one — and never quotes an end date the grantee hasn't given."""
+        label = f"{self.incentive_start} -> {self.measurement_end}"
+        if not self.incentive_ongoing:
+            return label
+        reason = (f"scheduled end {self.incentive_end}" if self.incentive_end
+                  else "no end date announced")
+        return f"{label} (incentive ongoing, {reason})"
 
     @property
     def measurement_end(self) -> date:
@@ -196,13 +256,36 @@ def load_grant(grant_id: str) -> GrantConfig:
     scope_contracts = []
     for _, r in smatch.iterrows():
         addr = _cell(r, addr_col)
-        if isinstance(addr, str) and addr.strip():
-            scope_contracts.append({
-                "chain": str(_cell(r, "chain") or "").strip(),
-                "address": addr.strip().lower(),
-                "pool": str(_cell(r, "pool") or "").strip(),
-                "type": str(_cell(r, "type") or "").strip(),
-            })
+        if not (isinstance(addr, str) and addr.strip()):
+            continue
+        # token0/token1 are the measured token symbols, one per column, so no
+        # label parsing is needed: the registry used to pack them into a single
+        # `pool` cell ("CL100-USDC/WETH", "EURC-USDC 0.01%") which had to be
+        # un-decorated with regexes before it could be split. `pool_details`
+        # carries the tick-spacing/fee tag that used to be embedded, and is
+        # never parsed — it only makes otherwise-identical pools on the same
+        # chain distinguishable in output labels.
+        token0 = str(_cell(r, "token0") or "").strip()
+        token1 = str(_cell(r, "token1") or "").strip()
+        details = str(_cell(r, "pool_details") or "").strip()
+        scope_id = str(_cell(r, "scope_id") or "?").strip()
+        if not token0:
+            raise SystemExit(
+                f"Scope row {scope_id} ({addr.strip()}) has no token0. Every "
+                f"row needs the symbol of the token being measured; a blank "
+                f"one silently measures nothing at all."
+            )
+        scope_contracts.append({
+            "chain": str(_cell(r, "chain") or "").strip(),
+            "address": addr.strip().lower(),
+            "token0": token0,
+            "token1": token1,
+            "details": details,
+            # display only — charts and console lines
+            "label": " ".join(x for x in (
+                "/".join(t for t in (token0, token1) if t), details) if x),
+            "type": str(_cell(r, "type") or "").strip(),
+        })
 
     chains = [c.strip() for c in str(_cell(g, "chains") or "").split(",") if c.strip()]
     unmapped = [c for c in chains if c not in CHAIN_TO_DEFILLAMA]
@@ -212,12 +295,14 @@ def load_grant(grant_id: str) -> GrantConfig:
         )
 
     incentive_start = _to_date(_cell(w, "incentive_start_date"))
-    incentive_end = _to_date(_cell(w, "incentive_end_date"))
-    if not incentive_start or not incentive_end:
+    if not incentive_start:
         raise SystemExit(
-            f"Grant {grant_id} is missing incentive_start_date or "
-            f"incentive_end_date in the windows tab."
+            f"Grant {grant_id} is missing incentive_start_date in the windows "
+            f"tab. The window has to start somewhere; there is no sane default."
         )
+    # A blank end date is meaningful, not missing: the incentive is still
+    # running with no announced end (see GrantConfig.incentive_ongoing).
+    incentive_end = _to_date(_cell(w, "incentive_end_date"))
 
     slug = str(_cell(g, "defillama_slug") or "").strip()
     if not slug:
@@ -238,6 +323,5 @@ def load_grant(grant_id: str) -> GrantConfig:
         incentive_start=incentive_start,
         snapshot=_to_date(_cell(w, "snapshot")),
         incentive_end=incentive_end,
-        co_incentives=str(_cell(g, "coincentives") or "").strip() or None,
         scope_contracts=scope_contracts,
     )
