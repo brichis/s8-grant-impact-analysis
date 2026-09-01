@@ -80,8 +80,8 @@ price, which the fixed-end-price formula excludes).
 ```bash
 pip install -r requirements.txt
 export ALCHEMY_KEY=...        # archive-capable RPC; reads are on-chain
-python run.py                 # default grant (40acres)
 python run.py APP-XXXX-XXXX   # any grant whose scope tab is filled
+python run.py APP-XXXX-XXXX --global   # Global Scope instead of Targeted
 ```
 
 Outputs go to `output/<grantee-slug>/` — one subdirectory per grantee (e.g.
@@ -103,6 +103,7 @@ grant's numbers:
 ```
 run.py                  orchestrator: registry → measure → price → metrics → outputs
 src/registry.py         grant config from the registry Google Sheet
+src/chains.py           chain name/slug table (registry / DefiLlama / RPC)
 src/measure.py          per-contract quantity reads, dispatched by type (vault/loan/pool)
 src/uniswap_v4.py       Uniswap v4 pool reserves (Optimism, via Uniswap's ReservesLens)
 src/pancake_infinity.py PancakeSwap Infinity CL pool reserves (Base, off-chain tick walk)

@@ -40,7 +40,8 @@ import pandas as pd
 import extrafi
 import pancake_infinity
 import uniswap_v4
-from rpc import ArchiveRPC, RPC_SLUG
+from chains import canonical as _normalize_chain, rpc_slug
+from rpc import ArchiveRPC
 
 # Selectors (function signatures -> 4-byte selector).
 TOTAL_ASSETS = "0x01e1d114"   # totalAssets()
@@ -59,16 +60,6 @@ VE_ESCROW = {
     "Optimism": "0xfaf8fd17d9840595845582fcb047df13f006787d",   # veVELO
     "Base": "0xebf418fe2512e7e6bd9b87a8f0f294acdc67e6b4",       # veAERO
 }
-
-# Registry chain labels -> the canonical labels used below (VE_ESCROW,
-# RPC_SLUG, uniswap_v4/pancake_infinity's deployment dicts all key off these,
-# matching registry.py's CHAIN_TO_DEFILLAMA convention).
-CHAIN_LABEL = {"OP Mainnet": "Optimism"}
-
-
-def _normalize_chain(chain: str) -> str:
-    return CHAIN_LABEL.get(chain, chain)
-
 
 # Registry pool labels vs. a token's own on-chain symbol() sometimes
 # legitimately differ (e.g. OP-Stack pools hold WETH, never native ETH, but
@@ -477,9 +468,7 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
     rpc_by_slug: dict[str, ArchiveRPC] = {}
 
     def rpc_for(chain_label: str) -> ArchiveRPC:
-        slug = RPC_SLUG.get(chain_label)
-        if slug is None:
-            raise SystemExit(f"No RPC slug for chain '{chain_label}'.")
+        slug = rpc_slug(chain_label)
         if slug not in rpc_by_slug:
             rpc_by_slug[slug] = ArchiveRPC(slug, cache_path)
         return rpc_by_slug[slug]

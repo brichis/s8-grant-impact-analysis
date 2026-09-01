@@ -6,7 +6,6 @@ incentivized contracts; prices come from DefiLlama; nothing a grantee
 self-reported is an input.
 
     export ALCHEMY_KEY=...          # archive-capable RPC (needed: reads are on-chain)
-    python run.py                   # default grant (40acres)
     python run.py APP-XXXX-XXXX     # any grant_id whose scope tab is filled
     python run.py APP-XXXX-XXXX --global   # Global Scope instead of Targeted
 
@@ -43,7 +42,6 @@ import outputs          # noqa: E402
 import prices as pricing  # noqa: E402
 from registry import load_grant  # noqa: E402
 
-DEFAULT_GRANT = "APP-CS0S7GDN-MR3JI7"
 BASE = Path(__file__).parent
 OUT_BASE = BASE / "output"
 RAW_DIR = BASE / "data"
@@ -75,7 +73,15 @@ def _print_milestones(config, result) -> None:
 
 def main() -> None:
     args = sys.argv[1:]
-    grant_id = next((a for a in args if a.startswith("APP-")), DEFAULT_GRANT)
+    # No default grant. This used to fall back to 40acres, which meant a typo'd
+    # or forgotten id silently measured a different grantee and overwrote its
+    # output directory with numbers the caller never asked for.
+    grant_id = next((a for a in args if a.startswith("APP-")), None)
+    if grant_id is None:
+        raise SystemExit(
+            "Usage: python run.py APP-XXXX-XXXX [--global]\n"
+            "       (grant_id comes from the registry's grantees tab)"
+        )
     use_global = "--global" in args
 
     print("[1/4] Registry…")
