@@ -25,8 +25,9 @@ registry-driven and covers every grantee with a filled-in `scope` tab
 
 **Targeted Scope** (Step 1 of the methodology, the rigorous option): we measure
 only the incentivized contracts listed in the registry `scope` tab, so there is
-no protocol-wide over-count to proportion away. This makes attribution a
-per-contract co-incentive flag rather than a protocol-wide calculation.
+no protocol-wide over-count to proportion away, and no attribution step:
+attribution is 100% for every grant, because the change being measured is
+already the change on the contracts the grant incentivized.
 
 Each contract's token quantity is read directly from chain state at the last
 block of each checkpoint's UTC day, dispatched by the scope `type`:
@@ -34,7 +35,8 @@ block of each checkpoint's UTC day, dispatched by the scope `type`:
 | type | measurement | status |
 |---|---|---|
 | `vault` | `totalAssets()` (ERC-4626, underlying units) | proven |
-| `loan` / `lend` | governance token locked across held veNFTs (`locked(tokenId)`), or an ERC-4626-style lending market | proven (`loan`) / unverified interface (`lend`) |
+| `loan` | governance token locked across held veNFTs (`locked(tokenId)`) | proven |
+| `lend` | lending market, by interface probe: ERC-4626 `totalAssets()` (Curve LlamaLend), else Extrafi XLend/LYF (`src/extrafi.py`) | proven (Curve vaults match Curve's own API to 97–100%; Extrafi XLend matches DefiLlama to 99.7–100.5%) |
 | `pool` / `pool (V3)` | incentivized token reserve, standard one-contract-per-pool AMM (`balanceOf(pool)`) | proven |
 | `pool (Infinity)` | PancakeSwap Infinity's singleton-`Vault` CL pools — no deployed reserves-lens contract exists, so reserves come from an off-chain tick walk (`src/pancake_infinity.py`), cross-checked against the pool's own `getLiquidity()` every run | proven |
 | `pool` (32-byte PoolId, non-Infinity) | Uniswap v4 pools, via Uniswap's own `ReservesLens` (`src/uniswap_v4.py`) | proven (Optimism only) |
@@ -53,11 +55,15 @@ Start = actual grant delivery, but that was flagged as ambiguous in governance
 (GFXlabs, Jan 2026), which recommended anchoring to when execution began. We
 adopt that reading as a deliberate, disclosed choice.
 
-**Still-running grants.** When the registry's incentive-end date is today or
-later, the incentive is treated as ongoing (the windows tab's end "proof" for
-these is a live dashboard, not an end announcement). The `end` checkpoint is
-then read at the last fully-elapsed UTC day — an **interim** measurement,
-labelled as such in the window string and console output — and the
+**Still-running grants.** An incentive counts as ongoing when the registry's
+`incentive_end_date` is today or later, **or when it is blank** — the registry's
+way of recording "still running, no end announced" for a grantee that never
+published an end date. That cell is deliberately not filled with a placeholder
+such as today's date: a placeholder has to be re-edited every day, and the
+moment it goes stale the grant silently reads as finished and publishes a final
+measurement of a program still in flight. For an ongoing grant the `end`
+checkpoint is read at the last fully-elapsed UTC day — an **interim**
+measurement, labelled as such in the window string and console output — and the
 supplementary +30d retention metric is omitted because the window hasn't
 closed. Another disclosed choice, like the execution-start reading of the
 window's start.
@@ -102,7 +108,7 @@ src/uniswap_v4.py       Uniswap v4 pool reserves (Optimism, via Uniswap's Reserv
 src/pancake_infinity.py PancakeSwap Infinity CL pool reserves (Base, off-chain tick walk)
 src/rpc.py              archive JSON-RPC client: block-at-timestamp, veNFT enumeration
 src/prices.py           DefiLlama prices (+ quantity cross-check)
-src/metrics.py          per-contract S8 formula, attribution, supplementary metrics
+src/metrics.py          per-contract S8 formula, supplementary metrics
 src/outputs.py          Datawrapper CSVs and tables
 ```
 
@@ -112,8 +118,10 @@ The pipeline is registry-driven; a new grant runs once its `scope` tab is filled
 (every incentivized contract with chain / address / pool / type). Per-grant
 decisions:
 
-- **Co-incentives** → set per-contract attribution below 100% via
-  `attribution_overrides` on the config; the registry flags which grants have them.
+- **Co-incentives** → not discounted. Several grantees ran their own token
+  incentives alongside the OP grant, but splitting credit between the two needs
+  a defensible per-grant ratio that the available data does not support, so
+  none is invented: every grant reports at 100% attribution, disclosed here.
 - **DEX pools** → the `pool` type dispatches on the registry `type` string
   (`pool`, `pool (V3)`, `pool (Infinity)`) and on address shape (20-byte
   contract vs. 32-byte PoolId); a genuinely new AMM architecture (not

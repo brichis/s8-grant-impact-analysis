@@ -19,7 +19,7 @@ Method (S8 Impact Measurement Methodology):
                 made per grant, not a default — see global_scope.py.
   * Formula   : ΔTVL = Σ (quantity_end − quantity_start) × price_end
   * Window    : incentive start → incentive end (execution start; see registry.py)
-  * Attribution: per-contract; 100% unless a co-incentive overlapped a contract.
+  * Attribution: 100% — only the incentivized contracts are measured.
 
 Supplementary context (S7-derived, labelled non-S8): retention +30d, price-qty wedge.
 """
@@ -65,12 +65,14 @@ def main() -> None:
     scope_note = ("Global (protocol-wide)" if use_global
                   else f"Targeted, {len(config.scope_contracts)} contracts")
     print(f"      scope: {scope_note}")
-    window_end = config.measurement_end if config.incentive_ongoing else config.incentive_end
+    window_end = config.measurement_end
     print(f"      window: {config.incentive_start} → {window_end} "
           f"(snapshot {config.snapshot})")
     if config.incentive_ongoing:
-        print(f"      ⚠ incentive still running — registry end "
-              f"{config.incentive_end} is scheduled, not proven. INTERIM "
+        scheduled = (f"registry end {config.incentive_end} is scheduled, not "
+                     f"proven" if config.incentive_end
+                     else "no end date announced by the grantee")
+        print(f"      ⚠ incentive still running — {scheduled}. INTERIM "
               f"measurement as of {config.measurement_end}; +30d retention "
               f"omitted (window not closed).")
 
@@ -85,6 +87,7 @@ def main() -> None:
     # (before its guard) have silently returned today's state. Drop it rather
     # than report a retention figure the window can't support yet.
     include_plus30d = (not config.incentive_ongoing
+                       and config.stickiness_end is not None
                        and config.stickiness_end <= date.today())
     checkpoints = {"start": config.incentive_start,
                    "snapshot": config.snapshot,
@@ -107,14 +110,27 @@ def main() -> None:
 
     result = metrics.compute(config, measured, price_map)
 
-    print(f"\n  S8 ΔTVL (Targeted, attributed): "
-          f"${result.delta_tvl_attributed_usd:,.0f}")
+    print(f"\n  S8 ΔTVL (Targeted): ${result.delta_tvl_usd:,.0f}")
     for c in result.contracts:
         label = c.pool if c.pool.upper() == c.token else f"{c.pool} [{c.token}]"
         print(f"    {label:<14} ({c.chain:<11}) "
               f"{c.quantity_start:,.0f} → {c.quantity_end:,.0f} "
-              f"@ ${c.price_end:,.4f} = ${c.delta_tvl_attributed_usd:,.0f}"
-              + ("" if c.attribution_pct == 100 else f"  [{c.attribution_pct}%]"))
+              f"@ ${c.price_end:,.4f} = ${c.delta_tvl_usd:,.0f}")
+
+    # A token DefiLlama has no price for contributes $0 to ΔTVL. That is a
+    # silent understatement, not a measured zero, so name it rather than let it
+    # disappear into the total — the quantity change was real, only the price
+    # is missing (e.g. syrupUSDT on Ink, which neither the protocol series nor
+    # the coins API quotes).
+    unpriced = [c for c in result.contracts
+                if c.price_end == 0 and c.quantity_end != c.quantity_start]
+    if unpriced:
+        print(f"\n  ⚠ no DefiLlama price for {len(unpriced)} token(s) — each "
+              f"contributed $0 to the total above, understating it:")
+        for c in unpriced:
+            print(f"      {c.pool} [{c.token}] ({c.chain}): "
+                  f"{c.quantity_start:,.2f} → {c.quantity_end:,.2f} unpriced")
+
     if config.target_milestone1:
         print(f"    vs M1 ${config.target_milestone1:,.0f}: "
               f"{'MET' if result.milestone1_met else 'not met'}")
@@ -154,7 +170,7 @@ def run_global(config, checkpoints: dict, OUT_DIR: Path) -> None:
 
     print(f"\n  S8 ΔTVL (Global, protocol-wide): ${result.delta_tvl_usd:,.0f}")
     print(f"    chains: {', '.join(result.chains)}")
-    print(f"    TVL {config.incentive_start} → {config.incentive_end}: "
+    print(f"    TVL over {config.window_label}: "
           f"${result.tvl_start_usd:,.0f} → ${result.tvl_end_usd:,.0f}")
     if config.target_milestone1:
         print(f"    vs M1 ${config.target_milestone1:,.0f}: "

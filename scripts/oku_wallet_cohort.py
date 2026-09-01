@@ -27,7 +27,8 @@ contract-scoped) for grantees with no dedicated contract of their own -- not
 a change to the S8 formula, window, or the per-contract default used
 everywhere else in the registry.
 
-The wallet cohort itself comes from the registry's own `oku` tab (id,
+The wallet cohort itself comes from the registry's own `oku-wallet-cohort`
+tab (id,
 wallet_address, date, Paid?, OP_Amount_Received) -- the registry is the only
 hand-maintained input everywhere else in this pipeline, and this script
 follows the same rule rather than reading a locally-downloaded payout CSV.
@@ -55,6 +56,10 @@ from registry import GVIZ_URL, SHEET_ID, _read_tab, _to_date  # noqa: E402
 from rpc import ArchiveRPC, RPC_SLUG  # noqa: E402
 
 GRANT_ID = "APP-SJI1PDNL-Z0UTM9"
+# gviz silently falls back to the FIRST tab when a named tab is absent, so a
+# rename here reads the grantees tab instead of failing — _fetch_oku_wallets
+# checks for the wallet_address header precisely to catch that.
+OKU_TAB = "oku-wallet-cohort"
 VAULT = "0xc30ce6a5758786e0f640cc5f881dd96e9a1c5c59"  # Gauntlet USDC Prime, Optimism
 BASE = Path(__file__).parent.parent
 RPC_CACHE = BASE / "data" / "rpc_cache.json"
@@ -137,17 +142,17 @@ def _has_code(rpc: ArchiveRPC, address: str, block: int) -> bool:
 
 
 def _fetch_oku_wallets() -> pd.DataFrame:
-    """The registry's `oku` tab: id, wallet_address, date, Paid?,
+    """The registry's `oku-wallet-cohort` tab: id, wallet_address, date, Paid?,
     OP_Amount_Received. Same live-Google-Sheet-as-CSV pattern as
     registry._read_tab, but anchored on 'wallet_address' rather than
     'grant_id' for header detection -- this tab has no grant_id column,
     it's one grant's own recipient list, not a cross-grant tab.
     """
-    url = GVIZ_URL.format(sheet_id=SHEET_ID, tab="oku")
+    url = GVIZ_URL.format(sheet_id=SHEET_ID, tab=OKU_TAB)
     text = requests.get(url, timeout=60).text
     if text.lstrip().startswith("<"):
         raise SystemExit(
-            "Registry tab 'oku' returned HTML, not CSV — check the tab name "
+            f"Registry tab '{OKU_TAB}' returned HTML, not CSV — check the tab name "
             "or sharing settings."
         )
     lines = text.splitlines()
@@ -155,11 +160,13 @@ def _fetch_oku_wallets() -> pd.DataFrame:
         (i for i, line in enumerate(lines) if "wallet_address" in line.lower()), None
     )
     if header_row is None:
-        raise SystemExit("No 'wallet_address' column found in the registry's 'oku' tab.")
+        raise SystemExit(
+            f"No 'wallet_address' column in the registry's '{OKU_TAB}' tab — "
+            f"if the tab was renamed, gviz silently served a different one.")
     frame = pd.read_csv(io.StringIO("\n".join(lines[header_row:])), dtype=str)
     frame.columns = [c.strip() for c in frame.columns]
     if frame["wallet_address"].dropna().empty:
-        raise SystemExit("Registry 'oku' tab has a wallet_address column but no rows.")
+        raise SystemExit(f"Registry '{OKU_TAB}' tab has a wallet_address column but no rows.")
     return frame
 
 
@@ -184,7 +191,7 @@ def main() -> None:
     df = _fetch_oku_wallets()
     wallets = sorted({w.strip().lower() for w in df["wallet_address"].dropna()})
     paid_true = (df["Paid?"].astype(str).str.strip().str.upper() == "TRUE").sum()
-    print(f"{len(wallets)} unique wallets in the registry's 'oku' tab "
+    print(f"{len(wallets)} unique wallets in the registry's '{OKU_TAB}' tab "
           f"({paid_true} marked Paid=TRUE by Oku — not relied on here; every "
           f"wallet is checked on-chain independently)")
 

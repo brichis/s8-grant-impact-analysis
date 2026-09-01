@@ -5,9 +5,9 @@
 Unlike Targeted Scope (measure.py + metrics.py), this needs no on-chain reads
 at all: DefiLlama already publishes a protocol-wide TVL-in-USD series per
 chain (chainTvls[chain].tvl), so ΔTVL is just that series' value at each
-checkpoint date, summed across the grant's chains. Same window, attribution,
-and supplementary-metric conventions as Targeted Scope — only the quantity
-being measured changes, from per-contract token deltas to protocol-wide TVL.
+checkpoint date, summed across the grant's chains. Same window and
+supplementary-metric conventions as Targeted Scope — only the quantity being
+measured changes, from per-contract token deltas to protocol-wide TVL.
 
 Use this when Targeted Scope's on-chain reads aren't viable for a grant (e.g.
 the read tooling a pool type needs didn't exist yet at the grant's dates) — a
@@ -106,7 +106,7 @@ def compute(config, tvl: dict) -> GlobalScopeResult:
 
     return GlobalScopeResult(
         grant_id=config.grant_id, grantee=config.grantee,
-        window=f"{config.incentive_start} -> {config.incentive_end}",
+        window=config.window_label,
         scope="Global (protocol-wide)", chains=config.defillama_chains,
         tvl_start_usd=round(tvl_start, 2), tvl_end_usd=round(tvl_end, 2),
         delta_tvl_usd=round(delta, 2),

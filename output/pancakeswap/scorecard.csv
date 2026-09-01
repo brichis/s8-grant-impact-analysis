@@ -1,2 +1,2 @@
-grant_id,grantee,window,scope,delta_tvl_attributed_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
 APP-61MKC5AZ-TFCR6F,PancakeSwap,2025-11-26 -> 2026-06-24,Targeted (per-contract),685922.69,2640000.0,6600000.0,False,False,600000.0,1.14,751674.87,61.0,-118888.73,567033.94

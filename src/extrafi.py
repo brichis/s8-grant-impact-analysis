@@ -2,11 +2,9 @@
 
 Extrafi's registry rows under `lend` actually span two unrelated lending
 protocols, distinguishable only by which contract interface the given
-address implements — the registry's `type` column doesn't tell them apart
-(both show up as `lend`, and a couple of rows are even mistyped `pool`, a
-holdover from before this module existed; those should be relabelled to
-`lend` in the registry — Extrafi has no AMM-pool product at all, so the
-`pool` two-leg dispatch doesn't apply to any of its contracts).
+address implements — the registry's `type` column doesn't tell them apart,
+since both show up as `lend`. (Extrafi has no AMM-pool product at all, so the
+`pool` two-leg dispatch never applies to any of its contracts.)
 
   XLend — a fork of Aave v3. The registry address is the market's aToken.
   Aave v3 aTokens rebase 1:1 with the underlying, so `totalSupply()` already

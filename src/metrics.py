@@ -10,10 +10,12 @@ Primary metric — the S8 TVL formula, applied to each scope contract and summed
     whose incentive is still running, end = the last fully-elapsed day and the
     result is an interim measurement (see registry.measurement_end)
 
-Attribution under Targeted Scope is simpler than under Global Scope: because we
-measure only the incentivized contracts, there is no protocol-wide over-count to
-proportion away. Attribution is applied per contract only where a co-incentive
-overlapped that specific contract; absent that, it is 100%.
+Attribution is 100% throughout, and is not a configurable input. Under Targeted
+Scope we measure only the contracts the grant actually incentivized, so there is
+no protocol-wide over-count to proportion away — the change we measure is the
+change on the incentivized contracts. Splitting that credit against a grantee's
+own co-incentives would need a defensible per-grant split, and the data to
+compute one honestly is not available, so no such split is invented here.
 
 Supplementary context (not S8 success metrics, labelled as such in outputs):
   * Retention +30d — value-weighted token retention 30 days after incentive end.
@@ -31,12 +33,6 @@ def _defillama_chain(registry_chain: str) -> str:
             "Base": "Base"}.get(registry_chain, registry_chain)
 
 
-def _contract_attribution(config, contract_address: str) -> float:
-    """Per-contract attribution %. Default 100%. Co-incentive overlaps lower it."""
-    overrides = getattr(config, "attribution_overrides", {}) or {}
-    return overrides.get(contract_address.lower(), 100.0)
-
-
 @dataclass
 class ContractResult:
     contract: str
@@ -48,8 +44,6 @@ class ContractResult:
     quantity_end: float
     price_end: float
     delta_tvl_usd: float
-    attribution_pct: float
-    delta_tvl_attributed_usd: float
 
 
 @dataclass
@@ -59,7 +53,7 @@ class GrantResult:
     window: str
     scope: str
     contracts: list
-    delta_tvl_attributed_usd: float
+    delta_tvl_usd: float
     target_milestone1: float | None
     target_total: float | None
     milestone1_met: bool | None
@@ -102,29 +96,25 @@ def compute(config, measured, prices) -> GrantResult:
     wide = _pivot_quantities(measured)
 
     contract_results = []
-    total_attr = 0.0
+    total_delta = 0.0
     for _key, row in wide.iterrows():
         token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
         price_end = prices.get(token_key, {}).get("end", 0.0)
         q_start = float(row.get("start", 0.0) or 0.0)
         q_end = float(row.get("end", 0.0) or 0.0)
         dtvl = (q_end - q_start) * price_end
-        attr_pct = _contract_attribution(config, row["contract"])
-        dtvl_attr = dtvl * attr_pct / 100.0
-        total_attr += dtvl_attr
+        total_delta += dtvl
         contract_results.append(ContractResult(
             contract=row["contract"], pool=row["pool"], token=row["token"],
             type=row["type"], chain=row["chain"],
             quantity_start=round(q_start, 2), quantity_end=round(q_end, 2),
-            price_end=round(price_end, 6), delta_tvl_usd=round(dtvl, 2),
-            attribution_pct=attr_pct,
-            delta_tvl_attributed_usd=round(dtvl_attr, 2)))
+            price_end=round(price_end, 6), delta_tvl_usd=round(dtvl, 2)))
 
-    m1_met = (total_attr >= config.target_milestone1
+    m1_met = (total_delta >= config.target_milestone1
               if config.target_milestone1 else None)
-    total_met = (total_attr >= config.target_total
+    total_met = (total_delta >= config.target_total
                  if config.target_total else None)
-    usd_per_op = (total_attr / config.budget_op) if config.budget_op else None
+    usd_per_op = (total_delta / config.budget_op) if config.budget_op else None
 
     at_snapshot = None
     if "snapshot" in set(measured["checkpoint"]):
@@ -165,11 +155,9 @@ def compute(config, measured, prices) -> GrantResult:
 
     return GrantResult(
         grant_id=config.grant_id, grantee=config.grantee,
-        window=(f"{config.incentive_start} -> {config.measurement_end}"
-                + (f" (incentive ongoing, scheduled end {config.incentive_end})"
-                   if config.incentive_ongoing else "")),
+        window=config.window_label,
         scope="Targeted (per-contract)", contracts=contract_results,
-        delta_tvl_attributed_usd=round(total_attr, 2),
+        delta_tvl_usd=round(total_delta, 2),
         target_milestone1=config.target_milestone1,
         target_total=config.target_total,
         milestone1_met=m1_met, total_target_met=total_met,

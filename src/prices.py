@@ -20,8 +20,6 @@ import requests
 
 API_URL = "https://api.llama.fi/protocol/{slug}"
 COINS_API_URL = "https://coins.llama.fi/prices/historical/{ts}/{coins}"
-NON_CHAIN_BUCKETS = {"borrowed", "staking", "pool2", "offers", "treasury",
-                     "vesting", "doublecounted", "liquidstaking"}
 # DefiLlama chain label -> coins.llama.fi chain slug, for the per-token
 # fallback below.
 COINS_CHAIN_SLUG = {"Base": "base", "Optimism": "optimism",

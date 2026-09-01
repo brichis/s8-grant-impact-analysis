@@ -1,2 +1,2 @@
-grant_id,grantee,window,scope,delta_tvl_attributed_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
 APP-PZ9Y02P7-UXJ2W4,Extrafi,2025-11-27 -> 2026-03-09,Targeted (per-contract),-126635.85,1500000.0,3000000.0,False,False,100000.0,-1.27,1589601.4,76.8,-787018.12,-913653.98
