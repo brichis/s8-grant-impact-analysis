@@ -100,7 +100,10 @@ def compute(config, tvl: dict) -> GlobalScopeResult:
     tvl_stick = tvl.get("plus30d")
     retention = (tvl_stick / tvl_end * 100.0) if (tvl_stick is not None and tvl_end) else None
 
-    m1_met = (delta >= config.target_milestone1) if config.target_milestone1 else None
+    # M1 is judged at the snapshot and M2 at the end -- same rule as
+    # metrics.compute; see the comment there.
+    m1_met = (None if delta_snap is None or not config.target_milestone1
+              else delta_snap >= config.target_milestone1)
     total_met = (delta >= config.target_total) if config.target_total else None
     usd_per_op = (delta / config.budget_op) if config.budget_op else None
 

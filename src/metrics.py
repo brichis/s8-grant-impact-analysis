@@ -19,6 +19,8 @@ compute one honestly is not available, so no such split is invented here.
 
 Supplementary context (not S8 success metrics, labelled as such in outputs):
   * Retention +30d — value-weighted token retention 30 days after incentive end.
+  * Milestones: M1 is tested against the snapshot checkpoint, M2 (target_total)
+    against the end checkpoint.
   * Price-vs-quantity wedge — the share of the USD change that is token-price
     movement, which the fixed-end-price formula deliberately excludes.
 """
@@ -110,12 +112,15 @@ def compute(config, measured, prices) -> GrantResult:
             quantity_start=round(q_start, 2), quantity_end=round(q_end, 2),
             price_end=round(price_end, 6), delta_tvl_usd=round(dtvl, 2)))
 
-    m1_met = (total_delta >= config.target_milestone1
-              if config.target_milestone1 else None)
-    total_met = (total_delta >= config.target_total
-                 if config.target_total else None)
-    usd_per_op = (total_delta / config.budget_op) if config.budget_op else None
-
+    # M1 is evaluated at the snapshot, M2 at the end, matching how the two
+    # checkpoints are labelled in outputs.py. Each milestone is measured over
+    # its own window, so the S8 formula's fixed price is the price at the end
+    # of *that* window: start->snapshot valued at snapshot prices, start->end
+    # at end prices. Testing M1 against the end figure (as this did) asks
+    # whether a milestone due months earlier is still met today, which for a
+    # grant whose TVL has since receded reports "not met" for a milestone that
+    # was in fact reached -- Velodrome cleared $3.2M at its snapshot and then
+    # gave it back.
     at_snapshot = None
     if "snapshot" in set(measured["checkpoint"]):
         at_snapshot = 0.0
@@ -126,6 +131,14 @@ def compute(config, measured, prices) -> GrantResult:
             q_start = float(row.get("start", 0.0) or 0.0)
             q_snap = float(row.get("snapshot", 0.0) or 0.0)
             at_snapshot += (q_snap - q_start) * price_snap
+
+    # None, not False, when the snapshot wasn't measured: unevaluated is not
+    # the same as missed.
+    m1_met = (None if at_snapshot is None or not config.target_milestone1
+              else at_snapshot >= config.target_milestone1)
+    total_met = (total_delta >= config.target_total
+                 if config.target_total else None)
+    usd_per_op = (total_delta / config.budget_op) if config.budget_op else None
 
     # Retention needs an actual +30d read. For a still-running grant run.py
     # omits that checkpoint entirely — treat it as "not measured" (None), not

@@ -54,6 +54,25 @@ def _slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
+def _print_milestones(config, result) -> None:
+    """M1 is judged at the snapshot, M2 at the end (see metrics.compute).
+    Printing the figure each verdict rests on keeps the two from being read
+    against the wrong checkpoint, which is how a met M1 came to report as
+    missed."""
+    if config.target_milestone1:
+        verdict = ("not evaluated (no snapshot measured)"
+                   if result.milestone1_met is None
+                   else ("MET" if result.milestone1_met else "not met"))
+        at = (f" — ${result.delta_tvl_at_snapshot_usd:,.0f} at snapshot"
+              if result.delta_tvl_at_snapshot_usd is not None else "")
+        print(f"    M1 vs ${config.target_milestone1:,.0f}: {verdict}{at}")
+    if config.target_total:
+        end_delta = getattr(result, "delta_tvl_usd", None)
+        at = f" — ${end_delta:,.0f} at end" if end_delta is not None else ""
+        print(f"    M2 vs ${config.target_total:,.0f}: "
+              f"{'MET' if result.total_target_met else 'not met'}{at}")
+
+
 def main() -> None:
     args = sys.argv[1:]
     grant_id = next((a for a in args if a.startswith("APP-")), DEFAULT_GRANT)
@@ -114,7 +133,8 @@ def main() -> None:
     for c in result.contracts:
         label = c.pool if c.pool.upper() == c.token else f"{c.pool} [{c.token}]"
         print(f"    {label:<14} ({c.chain:<11}) "
-              f"{c.quantity_start:,.0f} → {c.quantity_end:,.0f} "
+              f"{measure.format_quantity(c.quantity_start)} → "
+              f"{measure.format_quantity(c.quantity_end)} "
               f"@ ${c.price_end:,.4f} = ${c.delta_tvl_usd:,.0f}")
 
     # A token DefiLlama has no price for contributes $0 to ΔTVL. That is a
@@ -131,17 +151,9 @@ def main() -> None:
             print(f"      {c.pool} [{c.token}] ({c.chain}): "
                   f"{c.quantity_start:,.2f} → {c.quantity_end:,.2f} unpriced")
 
-    if config.target_milestone1:
-        print(f"    vs M1 ${config.target_milestone1:,.0f}: "
-              f"{'MET' if result.milestone1_met else 'not met'}")
-    if config.target_total:
-        print(f"    vs total ${config.target_total:,.0f}: "
-              f"{'MET' if result.total_target_met else 'not met'}")
+    _print_milestones(config, result)
     if result.usd_per_op is not None:
         print(f"  Efficiency: ${result.usd_per_op:,.2f} per OP")
-    if result.delta_tvl_at_snapshot_usd is not None:
-        print(f"  Interim M1 @ snapshot: ${result.delta_tvl_at_snapshot_usd:,.0f} "
-              f"(honest-baseline side note)")
     retention = (f"{result.retention_30d_pct}%"
                  if result.retention_30d_pct is not None
                  else "n/a (window not closed)")
@@ -172,17 +184,9 @@ def run_global(config, checkpoints: dict, OUT_DIR: Path) -> None:
     print(f"    chains: {', '.join(result.chains)}")
     print(f"    TVL over {config.window_label}: "
           f"${result.tvl_start_usd:,.0f} → ${result.tvl_end_usd:,.0f}")
-    if config.target_milestone1:
-        print(f"    vs M1 ${config.target_milestone1:,.0f}: "
-              f"{'MET' if result.milestone1_met else 'not met'}")
-    if config.target_total:
-        print(f"    vs total ${config.target_total:,.0f}: "
-              f"{'MET' if result.total_target_met else 'not met'}")
+    _print_milestones(config, result)
     if result.usd_per_op is not None:
         print(f"  Efficiency: ${result.usd_per_op:,.2f} per OP")
-    if result.delta_tvl_at_snapshot_usd is not None:
-        print(f"  Interim M1 @ snapshot: ${result.delta_tvl_at_snapshot_usd:,.0f} "
-              f"(honest-baseline side note)")
     if result.retention_30d_pct is not None:
         print(f"  Supplementary — retention +30d: {result.retention_30d_pct}%")
 

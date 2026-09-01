@@ -226,6 +226,22 @@ def _scope_tokens(contract: dict) -> list[str]:
     return [t.upper() for t in (contract["token0"], contract["token1"]) if t]
 
 
+def format_quantity(q: float) -> str:
+    """Token amount for console output, with enough precision to stay true.
+
+    A fixed 0-decimal format printed every BTC-denominated balance as "0":
+    0.37 tBTC is ~$29k, not nothing, and a screen full of zeros reads as a
+    broken run rather than a small one. Scale the precision to the magnitude.
+    """
+    if q == 0:
+        return "0"
+    if abs(q) >= 1000:
+        return f"{q:,.0f}"
+    if abs(q) >= 1:
+        return f"{q:,.2f}"
+    return f"{q:.4g}"
+
+
 def _end_of_day_ts(day: date) -> int:
     return int(pd.Timestamp(day).replace(
         hour=23, minute=59, second=59).to_pydatetime().timestamp())
@@ -490,7 +506,8 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
                         "date": day.isoformat(),
                         "quantity": quantity,
                     })
-                legs_str = ", ".join(f"{t}={q:,.0f}" for t, q in result["legs"].items())
+                legs_str = ", ".join(f"{t}={format_quantity(q)}"
+                                     for t, q in result["legs"].items())
                 print(f"      {label:<10} {day}  {legs_str}")
                 continue
 
@@ -511,5 +528,6 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
                 row["nfts"] = result["nfts"]
             rows.append(row)
             extra = f", {result['nfts']} NFTs" if "nfts" in result else ""
-            print(f"      {label:<10} {day}  qty={result['quantity']:,.0f}{extra}")
+            print(f"      {label:<10} {day}  "
+                  f"qty={format_quantity(result['quantity'])}{extra}")
     return pd.DataFrame(rows)
