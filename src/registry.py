@@ -28,19 +28,11 @@ from urllib.parse import quote
 import pandas as pd
 import requests
 
+from chains import canonical, known
+
 SHEET_ID = "16zihpXzVmE0q8SweTMS57Va87VejqJh7h2Zm5104JM0"
 GVIZ_URL = ("https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq"
             "?tqx=out:csv&sheet={tab}")
-
-# Registry chain labels -> DefiLlama `chainTvls` keys.
-CHAIN_TO_DEFILLAMA = {
-    "OP Mainnet": "Optimism",
-    "Optimism": "Optimism",
-    "Base": "Base",
-    "Unichain": "Unichain",
-    "Ink": "Ink",
-    "Soneium": "Soneium",
-}
 
 
 def _fetch_rows(tab: str, headers: int | None) -> list[list[str]]:
@@ -224,20 +216,14 @@ class GrantConfig:
         return self.incentive_end
 
 
-def load_grant(grant_id: str) -> GrantConfig:
-    """Build a GrantConfig for `grant_id` from the live registry."""
-    grantees = _read_tab("grantees")
-    match = grantees[grantees["grant_id"].astype(str).str.strip() == grant_id]
-    if match.empty:
-        raise SystemExit(f"Grant {grant_id} not found in the grantees tab.")
-    g = match.iloc[0]
+def load_scope(grant_id: str) -> list[dict]:
+    """The registry `scope` rows for one grant, parsed.
 
-    windows = _read_tab("windows")
-    wmatch = windows[windows["grant_id"].astype(str).str.strip() == grant_id]
-    if wmatch.empty:
-        raise SystemExit(f"Grant {grant_id} has no row in the windows tab.")
-    w = wmatch.iloc[0]
-
+    Separate from load_grant because a grant can need its scope rows without a
+    full GrantConfig: Oku has no `defillama_slug` (load_grant refuses without
+    one) yet still keeps the vault it routes into in the scope tab, like every
+    other measured contract.
+    """
     scope = _read_tab("scope")
     # The registry's contract-address column has been renamed at least once
     # already (plain "contract_address" -> "contract_address / pool_id", once
@@ -253,7 +239,7 @@ def load_grant(grant_id: str) -> GrantConfig:
         )
     addr_col = addr_cols[0]
     smatch = scope[scope["grant_id"].astype(str).str.strip() == grant_id]
-    scope_contracts = []
+    rows = []
     for _, r in smatch.iterrows():
         addr = _cell(r, addr_col)
         if not (isinstance(addr, str) and addr.strip()):
@@ -275,7 +261,7 @@ def load_grant(grant_id: str) -> GrantConfig:
                 f"row needs the symbol of the token being measured; a blank "
                 f"one silently measures nothing at all."
             )
-        scope_contracts.append({
+        rows.append({
             "chain": str(_cell(r, "chain") or "").strip(),
             "address": addr.strip().lower(),
             "token0": token0,
@@ -286,13 +272,29 @@ def load_grant(grant_id: str) -> GrantConfig:
                 "/".join(t for t in (token0, token1) if t), details) if x),
             "type": str(_cell(r, "type") or "").strip(),
         })
+    return rows
+
+
+def load_grant(grant_id: str) -> GrantConfig:
+    """Build a GrantConfig for `grant_id` from the live registry."""
+    grantees = _read_tab("grantees")
+    match = grantees[grantees["grant_id"].astype(str).str.strip() == grant_id]
+    if match.empty:
+        raise SystemExit(f"Grant {grant_id} not found in the grantees tab.")
+    g = match.iloc[0]
+
+    windows = _read_tab("windows")
+    wmatch = windows[windows["grant_id"].astype(str).str.strip() == grant_id]
+    if wmatch.empty:
+        raise SystemExit(f"Grant {grant_id} has no row in the windows tab.")
+    w = wmatch.iloc[0]
+
+    scope_contracts = load_scope(grant_id)
 
     chains = [c.strip() for c in str(_cell(g, "chains") or "").split(",") if c.strip()]
-    unmapped = [c for c in chains if c not in CHAIN_TO_DEFILLAMA]
+    unmapped = [c for c in chains if not known(c)]
     if unmapped:
-        raise SystemExit(
-            f"Chain(s) {unmapped} are not in CHAIN_TO_DEFILLAMA — add them."
-        )
+        raise SystemExit(f"Chain(s) {unmapped} are not in chains.py — add them.")
 
     incentive_start = _to_date(_cell(w, "incentive_start_date"))
     if not incentive_start:
@@ -319,7 +321,7 @@ def load_grant(grant_id: str) -> GrantConfig:
         target_milestone1=_to_number(_cell(g, "target_milestone1")),
         target_total=_to_number(_cell(g, "target_total")),
         chains=chains,
-        defillama_chains=[CHAIN_TO_DEFILLAMA[c] for c in chains],
+        defillama_chains=[canonical(c) for c in chains],
         incentive_start=incentive_start,
         snapshot=_to_date(_cell(w, "snapshot")),
         incentive_end=incentive_end,

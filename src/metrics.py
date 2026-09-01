@@ -29,10 +29,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-
-def _defillama_chain(registry_chain: str) -> str:
-    return {"OP Mainnet": "Optimism", "Optimism": "Optimism",
-            "Base": "Base"}.get(registry_chain, registry_chain)
+from chains import canonical
 
 
 @dataclass
@@ -100,7 +97,7 @@ def compute(config, measured, prices) -> GrantResult:
     contract_results = []
     total_delta = 0.0
     for _key, row in wide.iterrows():
-        token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
+        token_key = (canonical(row["chain"]), str(row["token"]).upper())
         price_end = prices.get(token_key, {}).get("end", 0.0)
         q_start = float(row.get("start", 0.0) or 0.0)
         q_end = float(row.get("end", 0.0) or 0.0)
@@ -125,7 +122,7 @@ def compute(config, measured, prices) -> GrantResult:
     if "snapshot" in set(measured["checkpoint"]):
         at_snapshot = 0.0
         for _key, row in wide.iterrows():
-            token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
+            token_key = (canonical(row["chain"]), str(row["token"]).upper())
             p = prices.get(token_key, {})
             price_snap = p.get("snapshot", p.get("end", 0.0))
             q_start = float(row.get("start", 0.0) or 0.0)
@@ -147,7 +144,7 @@ def compute(config, measured, prices) -> GrantResult:
     if "plus30d" in set(measured["checkpoint"]):
         num = den = 0.0
         for _key, row in wide.iterrows():
-            token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
+            token_key = (canonical(row["chain"]), str(row["token"]).upper())
             price_end = prices.get(token_key, {}).get("end", 0.0)
             q_end = float(row.get("end", 0.0) or 0.0)
             q_stick = float(row.get("plus30d", 0.0) or 0.0)
@@ -157,7 +154,7 @@ def compute(config, measured, prices) -> GrantResult:
 
     usd_level = 0.0
     for _key, row in wide.iterrows():
-        token_key = (_defillama_chain(row["chain"]), str(row["token"]).upper())
+        token_key = (canonical(row["chain"]), str(row["token"]).upper())
         p_start = prices.get(token_key, {}).get("start", 0.0)
         p_end = prices.get(token_key, {}).get("end", 0.0)
         q_start = float(row.get("start", 0.0) or 0.0)

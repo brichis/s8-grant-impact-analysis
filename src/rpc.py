@@ -23,15 +23,6 @@ from pathlib import Path
 
 import requests
 
-RPC_SLUG = {
-    "OP Mainnet": "opt-mainnet",
-    "Optimism": "opt-mainnet",
-    "Base": "base-mainnet",
-    "Unichain": "unichain-mainnet",
-    "Ink": "ink-mainnet",
-    "Soneium": "soneium-mainnet",
-}
-
 # block_at's search step assumes ~2s blocks (true for OP Mainnet/Base/Soneium);
 # Unichain and Ink run ~1s blocks, measured live via eth_getBlockByNumber over
 # a 10k-block window — a wrong estimate here doesn't return a wrong answer

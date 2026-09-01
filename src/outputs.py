@@ -25,7 +25,8 @@ def write_contract_chart(result, out_dir: Path) -> Path:
 
 def write_checkpoint_chart(config, measured, prices, out_dir: Path) -> Path:
     """Grant-total ΔTVL at each checkpoint, end-date price."""
-    from metrics import _defillama_chain, _pivot_quantities
+    from chains import canonical
+    from metrics import _pivot_quantities
     wide = _pivot_quantities(measured)
 
     labels = [("M1 · snapshot (interim)", "snapshot"),
@@ -37,7 +38,7 @@ def write_checkpoint_chart(config, measured, prices, out_dir: Path) -> Path:
             continue
         total = 0.0
         for _, r in wide.iterrows():
-            key = (_defillama_chain(r["chain"]), str(r["token"]).upper())
+            key = (canonical(r["chain"]), str(r["token"]).upper())
             price_end = prices.get(key, {}).get("end", 0.0)
             q0 = float(r.get("start", 0.0) or 0.0)
             q = float(r.get(col, 0.0) or 0.0)

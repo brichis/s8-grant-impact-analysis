@@ -18,12 +18,10 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from chains import canonical, coins_slug
+
 API_URL = "https://api.llama.fi/protocol/{slug}"
 COINS_API_URL = "https://coins.llama.fi/prices/historical/{ts}/{coins}"
-# DefiLlama chain label -> coins.llama.fi chain slug, for the per-token
-# fallback below.
-COINS_CHAIN_SLUG = {"Base": "base", "Optimism": "optimism",
-                    "Unichain": "unichain", "Ink": "ink", "Soneium": "soneium"}
 
 
 def fetch_protocol(slug: str, raw_dir: Path | None = None) -> dict:
@@ -120,8 +118,6 @@ def fill_price_gaps(price_map: dict, measured: pd.DataFrame, checkpoints: dict) 
     (via each token's real symbol(), not a hand-maintained table) — so there
     is one place tokens get mapped to addresses, not two.
     """
-    from metrics import _defillama_chain
-
     # A (chain, token) pair can appear in `measured` with a missing address
     # (e.g. a pool-not-yet-created checkpoint, which reports quantity=0 with
     # no resolved leg address) alongside rows that do have one — take any
@@ -131,7 +127,7 @@ def fill_price_gaps(price_map: dict, measured: pd.DataFrame, checkpoints: dict) 
         subset=["chain", "token"])
     gaps = []  # [(defillama_chain_label, TOKEN, address)]
     for _, r in needed.iterrows():
-        chain_label = _defillama_chain(r["chain"])
+        chain_label = canonical(r["chain"])
         token = str(r["token"]).upper()
         have = price_map.get((chain_label, token), {})
         if set(checkpoints) <= set(have):
@@ -145,13 +141,13 @@ def fill_price_gaps(price_map: dict, measured: pd.DataFrame, checkpoints: dict) 
         ts = int(pd.Timestamp(day).replace(
             hour=23, minute=59, second=59).to_pydatetime().timestamp())
         coins = ",".join(
-            f"{COINS_CHAIN_SLUG.get(chain, chain.lower())}:{addr}"
+            f"{coins_slug(chain)}:{addr}"
             for chain, _token, addr in gaps)
         resp = requests.get(COINS_API_URL.format(ts=ts, coins=coins), timeout=30)
         resp.raise_for_status()
         quotes = resp.json().get("coins", {})
         for chain, token, addr in gaps:
-            slug_key = f"{COINS_CHAIN_SLUG.get(chain, chain.lower())}:{addr}"
+            slug_key = f"{coins_slug(chain)}:{addr}"
             quote = quotes.get(slug_key)
             if quote is None:
                 continue

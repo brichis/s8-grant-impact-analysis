@@ -52,15 +52,15 @@ from dotenv import load_dotenv
 load_dotenv()
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from registry import GVIZ_URL, SHEET_ID, _read_tab, _to_date  # noqa: E402
-from rpc import ArchiveRPC, RPC_SLUG  # noqa: E402
+from chains import rpc_slug  # noqa: E402
+from registry import GVIZ_URL, SHEET_ID, _read_tab, _to_date, load_scope  # noqa: E402
+from rpc import ArchiveRPC  # noqa: E402
 
 GRANT_ID = "APP-SJI1PDNL-Z0UTM9"
 # gviz silently falls back to the FIRST tab when a named tab is absent, so a
 # rename here reads the grantees tab instead of failing — _fetch_oku_wallets
 # checks for the wallet_address header precisely to catch that.
 OKU_TAB = "oku-wallet-cohort"
-VAULT = "0xc30ce6a5758786e0f640cc5f881dd96e9a1c5c59"  # Gauntlet USDC Prime, Optimism
 BASE = Path(__file__).parent.parent
 RPC_CACHE = BASE / "data" / "rpc_cache.json"
 
@@ -141,6 +141,31 @@ def _has_code(rpc: ArchiveRPC, address: str, block: int) -> bool:
     return code not in (None, "0x", "0x0")
 
 
+def _cohort_vault() -> tuple[str, str]:
+    """(vault address, chain) for this grant, from the registry `scope` tab.
+
+    Oku has no contract of its own — the campaign routes deposits into a
+    shared Morpho vault — but the address it routes into is still a measured
+    contract, so it belongs in the registry alongside every other one rather
+    than as a constant here.
+    """
+    rows = load_scope(GRANT_ID)
+    if len(rows) != 1:
+        raise SystemExit(
+            f"Expected exactly one scope row for {GRANT_ID}, found {len(rows)}. "
+            f"This grant is measured as a single shared vault plus a wallet "
+            f"cohort, not as a set of contracts."
+        )
+    row = rows[0]
+    if row["type"] != "wallet-cohort":
+        raise SystemExit(
+            f"{GRANT_ID}'s scope row is typed '{row['type']}', expected "
+            f"'wallet-cohort'. If it now has a contract of its own, it should "
+            f"go through run.py instead of this script."
+        )
+    return row["address"], row["chain"]
+
+
 def _fetch_oku_wallets() -> pd.DataFrame:
     """The registry's `oku-wallet-cohort` tab: id, wallet_address, date, Paid?,
     OP_Amount_Received. Same live-Google-Sheet-as-CSV pattern as
@@ -185,8 +210,10 @@ def main() -> None:
     incentive_end = _to_date(w["incentive_end_date"])
     if not incentive_start or not incentive_end:
         raise SystemExit(f"Grant {GRANT_ID} is missing incentive dates in the windows tab.")
+    vault, chain = _cohort_vault()
     print(f"Oku (Optimism User Acquisition) ({GRANT_ID})")
     print(f"window: {incentive_start} -> {incentive_end}")
+    print(f"vault:  {vault} ({chain}, from the registry scope tab)")
 
     df = _fetch_oku_wallets()
     wallets = sorted({w.strip().lower() for w in df["wallet_address"].dropna()})
@@ -195,30 +222,30 @@ def main() -> None:
           f"({paid_true} marked Paid=TRUE by Oku — not relied on here; every "
           f"wallet is checked on-chain independently)")
 
-    rpc = ArchiveRPC(RPC_SLUG["Optimism"], RPC_CACHE)
+    rpc = ArchiveRPC(rpc_slug(chain), RPC_CACHE)
     block_start = rpc.block_at(_end_of_day_ts(incentive_start))
     block_end = rpc.block_at(_end_of_day_ts(incentive_end))
     print(f"block_start={block_start} ({incentive_start})  "
           f"block_end={block_end} ({incentive_end})")
 
-    if not _has_code(rpc, VAULT, block_start):
+    if not _has_code(rpc, vault, block_start):
         raise SystemExit(
-            f"{VAULT} has no code at block {block_start} ({incentive_start}) "
+            f"{vault} has no code at block {block_start} ({incentive_start}) "
             f"— the vault didn't exist yet at incentive_start. qty_start can't be "
             f"assumed 0 without confirming this; investigate before trusting output."
         )
 
-    asset = "0x" + rpc.read(VAULT, ASSET, block_end)[-40:]
+    asset = "0x" + rpc.read(vault, ASSET, block_end)[-40:]
     decimals = int(rpc.read(asset, DECIMALS, block_end), 16)
 
     # Phase 1: shares at both checkpoints, batched.
     share_calls = []
     for w in wallets:
         arg = _addr_arg(w)
-        share_calls.append((VAULT, BALANCE_OF + arg, block_start,
-                            f"opt-mainnet:call:{VAULT}:{BALANCE_OF}{arg}:{block_start}"))
-        share_calls.append((VAULT, BALANCE_OF + arg, block_end,
-                            f"opt-mainnet:call:{VAULT}:{BALANCE_OF}{arg}:{block_end}"))
+        share_calls.append((vault, BALANCE_OF + arg, block_start,
+                            f"{rpc.slug}:call:{vault}:{BALANCE_OF}{arg}:{block_start}"))
+        share_calls.append((vault, BALANCE_OF + arg, block_end,
+                            f"{rpc.slug}:call:{vault}:{BALANCE_OF}{arg}:{block_end}"))
     share_results = _batch_eth_call(rpc, share_calls)
     rpc.flush()
 
@@ -232,13 +259,13 @@ def main() -> None:
     for w in wallets:
         if shares_start[w] > 0:
             arg = hex(shares_start[w])[2:].rjust(64, "0")
-            key = f"opt-mainnet:call:{VAULT}:{CONVERT_TO_ASSETS}{arg}:{block_start}"
-            convert_calls.append((VAULT, CONVERT_TO_ASSETS + arg, block_start, key))
+            key = f"{rpc.slug}:call:{vault}:{CONVERT_TO_ASSETS}{arg}:{block_start}"
+            convert_calls.append((vault, CONVERT_TO_ASSETS + arg, block_start, key))
             convert_index.append((w, "start"))
         if shares_end[w] > 0:
             arg = hex(shares_end[w])[2:].rjust(64, "0")
-            key = f"opt-mainnet:call:{VAULT}:{CONVERT_TO_ASSETS}{arg}:{block_end}"
-            convert_calls.append((VAULT, CONVERT_TO_ASSETS + arg, block_end, key))
+            key = f"{rpc.slug}:call:{vault}:{CONVERT_TO_ASSETS}{arg}:{block_end}"
+            convert_calls.append((vault, CONVERT_TO_ASSETS + arg, block_end, key))
             convert_index.append((w, "end"))
     convert_results = _batch_eth_call(rpc, convert_calls)
     rpc.flush()
@@ -273,7 +300,7 @@ def main() -> None:
     print(f"wallets with a nonzero position at start or end: "
           f"{len(wallets) - len(no_position)} / {len(wallets)}")
     if no_position:
-        print(f"NO position found in {VAULT} for {len(no_position)} wallets "
+        print(f"NO position found in {vault} for {len(no_position)} wallets "
               f"(never held shares at start or end — either didn't deposit "
               f"here, used a different vault, or withdrew before block_end):")
         for w in no_position:
