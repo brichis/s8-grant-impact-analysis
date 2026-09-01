@@ -100,7 +100,10 @@ def _read_tab(tab: str) -> pd.DataFrame:
         )
     frame = pd.DataFrame(data, columns=labels, dtype=str)
     # gviz gives an absent cell as ""; the rest of this module tests for None.
-    return frame.replace("", None)
+    # Dict form: on pandas 2.0/2.1 the scalar form replace("", None) means
+    # "forward-fill" instead, and a blank incentive_end_date inheriting the
+    # row above's date would turn a still-running grant into a finished one.
+    return frame.replace({"": None})
 
 
 def _cell(row, column):

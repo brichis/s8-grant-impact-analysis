@@ -42,7 +42,6 @@ from __future__ import annotations
 
 import io
 import sys
-import time
 from pathlib import Path
 
 import pandas as pd
@@ -52,7 +51,7 @@ from dotenv import load_dotenv
 load_dotenv()
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from chains import rpc_slug  # noqa: E402
+from chains import coins_slug, rpc_slug  # noqa: E402
 from registry import GVIZ_URL, SHEET_ID, _read_tab, _to_date, load_scope  # noqa: E402
 from rpc import ArchiveRPC  # noqa: E402
 
@@ -70,8 +69,6 @@ ASSET = "0x38d52e0f"              # asset()
 DECIMALS = "0x313ce567"           # decimals()
 COINS_API_URL = "https://coins.llama.fi/prices/historical/{ts}/{coins}"
 
-BATCH_SIZE = 40
-
 
 def _addr_arg(addr: str) -> str:
     return addr.lower().replace("0x", "").rjust(64, "0")
@@ -81,64 +78,11 @@ def _end_of_day_ts(day) -> int:
     return int(pd.Timestamp(day).replace(hour=23, minute=59, second=59).timestamp())
 
 
-def _batch_eth_call(rpc: ArchiveRPC, calls: list[tuple[str, str, int, str]]) -> list[str]:
-    """calls: (to, data, block, cache_key). One HTTP round trip per BATCH_SIZE
-    calls instead of one per call — this script does hundreds of independent
-    per-wallet reads, and that's the difference between ~10 requests and
-    ~250. Self-contained here (rather than ArchiveRPC.call_batch, which this
-    grant's dedicated branch doesn't carry) so this script has no dependency
-    beyond what's already on main.
-    """
-    results: list[str | None] = [None] * len(calls)
-    pending = []
-    for i, (to, data, block, key) in enumerate(calls):
-        if key in rpc.cache:
-            results[i] = rpc.cache[key]
-        else:
-            pending.append((i, to, data, block, key))
-
-    for start in range(0, len(pending), BATCH_SIZE):
-        chunk = pending[start:start + BATCH_SIZE]
-        payload = [{"jsonrpc": "2.0", "id": i, "method": "eth_call",
-                    "params": [{"to": to, "data": data}, hex(block)]}
-                   for i, to, data, block, _ in chunk]
-        for attempt in range(6):
-            resp = requests.post(rpc.url, timeout=60, json=payload).json()
-            by_id = {r.get("id"): r for r in resp} if isinstance(resp, list) else {}
-            errors = [r for r in by_id.values() if "result" not in r]
-            if errors and any(
-                e.get("error", {}).get("code") == 429
-                or any(w in str(e.get("error", "")).lower()
-                       for w in ("rate", "capacity", "compute unit"))
-                for e in errors
-            ):
-                time.sleep(2 * (attempt + 1))
-                continue
-            if len(by_id) != len(chunk):
-                raise RuntimeError(
-                    f"batch call returned {len(by_id)} results for {len(chunk)} requests — {resp}")
-            for i, to, data, block, key in chunk:
-                r = by_id[i]
-                if "result" not in r:
-                    raise RuntimeError(f"RPC error: {r.get('error')}")
-                results[i] = r["result"]
-                rpc.cache[key] = r["result"]
-            break
-        else:
-            raise RuntimeError("rate-limited/network-flaky repeatedly")
-        time.sleep(0.15)
-    return results
-
-
-def _has_code(rpc: ArchiveRPC, address: str, block: int) -> bool:
-    key = f"{rpc.slug}:code:{address}:{block}"
-    if key not in rpc.cache:
-        resp = requests.post(rpc.url, timeout=30, json={
-            "jsonrpc": "2.0", "id": 1, "method": "eth_getCode", "params": [address, hex(block)],
-        }).json()
-        rpc.cache[key] = resp["result"]
-    code = rpc.cache[key]
-    return code not in (None, "0x", "0x0")
+def _eth_call(to: str, data: str, block: int, slug: str) -> tuple[str, list, str]:
+    """One eth_call in ArchiveRPC.call_batch's (method, params, cache_key)
+    shape, with the same cache key rpc.read would use for the identical call."""
+    return ("eth_call", [{"to": to, "data": data}, hex(block)],
+            f"{slug}:call:{to}:{data}:{block}")
 
 
 def _cohort_vault() -> tuple[str, str]:
@@ -228,7 +172,7 @@ def main() -> None:
     print(f"block_start={block_start} ({incentive_start})  "
           f"block_end={block_end} ({incentive_end})")
 
-    if not _has_code(rpc, vault, block_start):
+    if not rpc.has_code(vault, block_start):
         raise SystemExit(
             f"{vault} has no code at block {block_start} ({incentive_start}) "
             f"— the vault didn't exist yet at incentive_start. qty_start can't be "
@@ -242,11 +186,9 @@ def main() -> None:
     share_calls = []
     for w in wallets:
         arg = _addr_arg(w)
-        share_calls.append((vault, BALANCE_OF + arg, block_start,
-                            f"{rpc.slug}:call:{vault}:{BALANCE_OF}{arg}:{block_start}"))
-        share_calls.append((vault, BALANCE_OF + arg, block_end,
-                            f"{rpc.slug}:call:{vault}:{BALANCE_OF}{arg}:{block_end}"))
-    share_results = _batch_eth_call(rpc, share_calls)
+        share_calls.append(_eth_call(vault, BALANCE_OF + arg, block_start, rpc.slug))
+        share_calls.append(_eth_call(vault, BALANCE_OF + arg, block_end, rpc.slug))
+    share_results = rpc.call_batch(share_calls)
     rpc.flush()
 
     shares_start, shares_end = {}, {}
@@ -259,15 +201,13 @@ def main() -> None:
     for w in wallets:
         if shares_start[w] > 0:
             arg = hex(shares_start[w])[2:].rjust(64, "0")
-            key = f"{rpc.slug}:call:{vault}:{CONVERT_TO_ASSETS}{arg}:{block_start}"
-            convert_calls.append((vault, CONVERT_TO_ASSETS + arg, block_start, key))
+            convert_calls.append(_eth_call(vault, CONVERT_TO_ASSETS + arg, block_start, rpc.slug))
             convert_index.append((w, "start"))
         if shares_end[w] > 0:
             arg = hex(shares_end[w])[2:].rjust(64, "0")
-            key = f"{rpc.slug}:call:{vault}:{CONVERT_TO_ASSETS}{arg}:{block_end}"
-            convert_calls.append((vault, CONVERT_TO_ASSETS + arg, block_end, key))
+            convert_calls.append(_eth_call(vault, CONVERT_TO_ASSETS + arg, block_end, rpc.slug))
             convert_index.append((w, "end"))
-    convert_results = _batch_eth_call(rpc, convert_calls)
+    convert_results = rpc.call_batch(convert_calls)
     rpc.flush()
 
     assets_start, assets_end = {}, {}
@@ -289,7 +229,7 @@ def main() -> None:
     total_delta = result["delta"].sum()
 
     ts = _end_of_day_ts(incentive_end)
-    coin = f"optimism:{asset}"
+    coin = f"{coins_slug(chain)}:{asset}"
     resp = requests.get(COINS_API_URL.format(ts=ts, coins=coin), timeout=30)
     resp.raise_for_status()
     price_end = resp.json()["coins"].get(coin, {}).get("price")
@@ -310,7 +250,6 @@ def main() -> None:
     print(f"Sigma qty_end   = {result['qty_end'].sum():,.2f}")
     print(f"Sigma delta     = {total_delta:,.2f}")
     print(f"delta x price_end = ${total_delta * price_end:,.2f}")
-    print(f"\n(Oku's self-reported figure: $38,357 supplied to Morpho on Optimism, 67 users)")
 
     out_path = BASE / "output" / "oku_wallet_cohort.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
