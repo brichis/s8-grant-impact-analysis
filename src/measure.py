@@ -202,8 +202,6 @@ def measure_pool_reserve(rpc: ArchiveRPC, pool_address: str, token: str,
     return int(raw, 16) / 10 ** decimals
 
 
-# Registry `pool` labels for V3-style pools carry a trailing fee tier, e.g.
-# "EURC-USDC 0.01%" — strip it before splitting into legs.
 def _scope_tokens(contract: dict) -> list[str]:
     """The registry's token symbols for a scope row, uppercased.
 
