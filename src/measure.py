@@ -517,4 +517,12 @@ def measure_all(config, checkpoints: dict[str, date], cache_path) -> pd.DataFram
             extra = f", {result['nfts']} NFTs" if "nfts" in result else ""
             print(f"      {label:<10} {day}  "
                   f"qty={format_quantity(result['quantity'])}{extra}")
+        # Persist after every contract. Only measure_loan_collateral flushed
+        # before, so pool- and vault-only grants re-fetched every block and
+        # every reserve read on every run — fine for three checkpoints, and the
+        # reason a long daily series was impractical rather than merely slow.
+        rpc.flush()
+
+    for rpc in rpc_by_slug.values():
+        rpc.flush(force=True)
     return pd.DataFrame(rows)
