@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -34,6 +35,32 @@ BLOCK_TIME = {
 }
 
 
+# One cache dict per cache file, shared by every ArchiveRPC pointing at it.
+# Each instance used to load its own copy from disk, so on a multi-chain run
+# (Velodrome spans four) each flush wrote "disk + my chain's new entries" and
+# silently dropped whatever a sibling chain had added since it loaded. Keys are
+# already slug-namespaced, so one shared dict is safe and makes flush()
+# last-writer-safe instead of last-writer-wins.
+_CACHES: dict[Path, dict] = {}
+_DIRTY: dict[Path, bool] = {}
+_LAST_WRITE: dict[Path, float] = {}
+
+# Minimum seconds between cache writes. The file is tens of MB and json.dumps
+# rewrites all of it, so flushing after each of Velodrome's 50 contracts would
+# move well over a gigabyte per run to persist a few hundred new entries.
+FLUSH_INTERVAL_S = 30.0
+
+
+def _shared_cache(path: Path) -> dict:
+    resolved = path.resolve()
+    if resolved not in _CACHES:
+        _CACHES[resolved] = (json.loads(path.read_text())
+                             if path.exists() else {})
+        _DIRTY[resolved] = False
+        _LAST_WRITE[resolved] = 0.0
+    return _CACHES[resolved]
+
+
 class ArchiveRPC:
     """Minimal archive JSON-RPC client with a persistent response cache."""
 
@@ -45,8 +72,22 @@ class ArchiveRPC:
         self.slug = slug
         self.block_time = BLOCK_TIME.get(slug, 2.0)
         self.cache_path = Path(cache_path)
-        self.cache = (json.loads(self.cache_path.read_text())
-                      if self.cache_path.exists() else {})
+        self.cache = _shared_cache(self.cache_path)
+        self._resolved = self.cache_path.resolve()
+
+    @staticmethod
+    def _redact(exc: Exception) -> str:
+        """requests puts the full request URL into its exception text, and that
+        URL carries ALCHEMY_KEY — so re-raising one verbatim writes the key
+        into every traceback, background-task log and CI transcript. Never
+        re-raise a network error raw; scrub the key out first."""
+        return re.sub(r"/v2/[A-Za-z0-9_\-]+", "/v2/<redacted>", str(exc))
+
+    def _store(self, cache_key: str, value):
+        """Every cache mutation goes through here so `dirty` cannot drift out
+        of step with the dict it describes."""
+        self.cache[cache_key] = value
+        _DIRTY[self._resolved] = True
 
     def _call(self, method: str, params: list, cache_key: str | None = None):
         if cache_key and cache_key in self.cache:
@@ -57,18 +98,20 @@ class ArchiveRPC:
                     self.url, timeout=45,
                     json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
                 ).json()
-            except requests.exceptions.RequestException:
+            except requests.exceptions.RequestException as exc:
                 # Transient network hiccups (read timeouts, connection resets)
                 # shouldn't kill a long scan that's tens of minutes in — retry
                 # with backoff the same as a rate-limit response, rather than
                 # losing all progress since the last flush().
                 if attempt == 4:
-                    raise
+                    raise RuntimeError(
+                        f"{self.slug}: network error after 5 attempts: "
+                        f"{self._redact(exc)}") from None
                 time.sleep(1.5 * (attempt + 1))
                 continue
             if "result" in body:
                 if cache_key:
-                    self.cache[cache_key] = body["result"]
+                    self._store(cache_key, body["result"])
                 return body["result"]
             if "rate" in str(body.get("error", "")).lower():
                 time.sleep(1.5 * (attempt + 1))
@@ -107,9 +150,11 @@ class ArchiveRPC:
             for attempt in range(6):
                 try:
                     resp = requests.post(self.url, timeout=60, json=payload).json()
-                except requests.exceptions.RequestException:
+                except requests.exceptions.RequestException as exc:
                     if attempt == 5:
-                        raise
+                        raise RuntimeError(
+                            f"{self.slug}: network error after 6 attempts: "
+                            f"{self._redact(exc)}") from None
                     time.sleep(1.5 * (attempt + 1))
                     continue
                 by_id = {r.get("id"): r for r in resp} if isinstance(resp, list) else {}
@@ -137,16 +182,37 @@ class ArchiveRPC:
                         raise RuntimeError(f"{self.slug} RPC error: {r.get('error')}")
                     results[i] = r["result"]
                     if cache_key:
-                        self.cache[cache_key] = r["result"]
+                        self._store(cache_key, r["result"])
                 break
             else:
                 raise RuntimeError(f"{self.slug}: rate-limited/network-flaky repeatedly")
             time.sleep(0.15)  # stay under the per-second compute-unit cap proactively
         return results
 
-    def flush(self):
+    def flush(self, force: bool = False):
+        """Persist the cache, atomically and no more often than necessary.
+
+        No-op when nothing has changed since the last write, and otherwise
+        throttled to FLUSH_INTERVAL_S — `force=True` at the end of a run to
+        guarantee the last entries land.
+
+        Writes to a pid-unique temp file and os.replace()s it into position.
+        write_text() truncates before rewriting tens of MB, so a second process
+        flushing concurrently (two Claude sessions in one checkout — it has
+        happened) could leave an unparseable file and destroy every grantee's
+        cached reads. os.replace is atomic on POSIX: a concurrent writer can
+        still lose entries, but a reader never sees a half-written file."""
+        resolved = self._resolved
+        if not _DIRTY.get(resolved, False):
+            return
+        if not force and time.monotonic() - _LAST_WRITE.get(resolved, 0.0) < FLUSH_INTERVAL_S:
+            return
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
-        self.cache_path.write_text(json.dumps(self.cache))
+        tmp = self.cache_path.with_name(f"{self.cache_path.name}.{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(self.cache))
+        os.replace(tmp, self.cache_path)
+        _DIRTY[resolved] = False
+        _LAST_WRITE[resolved] = time.monotonic()
 
     # ---- blocks ----
     def _block(self, number):
@@ -196,7 +262,7 @@ class ArchiveRPC:
             if nxt_ts > timestamp:
                 break
             num, ts = nxt_num, nxt_ts
-        self.cache[cache_key] = num
+        self._store(cache_key, num)
         return num
 
     # ---- contract reads ----
