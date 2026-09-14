@@ -1,0 +1,2 @@
+peak_delta_tvl_usd,peak_date,delta_tvl_at_end_usd,coverage,source,note
+186223.99,2026-01-13,-315659.02,100% of scope contracts,"Dune tokens.transfers, anchored on the pipeline's on-chain start reading",5/5 scope pools on Base; peak identical to the archived per-day RPC series
