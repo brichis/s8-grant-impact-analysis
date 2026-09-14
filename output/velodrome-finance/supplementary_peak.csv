@@ -1,0 +1,2 @@
+peak_delta_tvl_usd,peak_date,delta_tvl_at_end_usd,coverage,source,note
+10515235.41,2026-03-20,-113696.86,"excludes Soneium (1.0% / 0.8% / 0.6% of scope TVL at start / snapshot / end; $-63,451 of the official ΔTVL); USDC/USDC CL1 (OP Mainnet) also sums 0x0b2c639c533813f4aa9d7837caf62653d097ff85","Dune tokens.transfers, anchored on the pipeline's on-chain start reading","44/50 scope pools (OP Mainnet, Unichain, Ink); Soneium is not indexed by Dune; USDC/USDC CL1 sums native USDC + USDC.e as the pipeline does"
