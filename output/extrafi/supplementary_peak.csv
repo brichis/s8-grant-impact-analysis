@@ -1,0 +1,2 @@
+peak_delta_tvl_usd,peak_date,delta_tvl_at_end_usd,coverage,source,note
+2059448.08,2026-01-28,-126635.75,100% of scope contracts,daily on-chain reads with the pipeline's own measure.py,6 lending markets (XLend aTokens + LYF) on Base and OP Mainnet; daily reads with the pipeline's own measure.py

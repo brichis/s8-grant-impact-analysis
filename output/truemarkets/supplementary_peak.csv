@@ -1,0 +1,2 @@
+peak_delta_tvl_usd,peak_date,delta_tvl_at_end_usd,coverage,source,note
+1776404.4,2025-11-30,984741.41,100% of scope contracts,daily on-chain reads with the pipeline's own measure.py,1 ERC-4626 vault on Base; daily totalAssets() read with the pipeline's own measure.py
