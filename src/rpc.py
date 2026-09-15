@@ -5,7 +5,8 @@ two non-trivial operations the measurement engine needs:
 
   * block_at(timestamp) — the last block at or before a UTC instant, so every
     read is taken at a defined, citable block.
-  * venft_transfers(...) — ERC-721 token_ids moved in/out of an address, via
+  * venft_transfers(...) — ERC-721 transfers in/out of an address, as
+    (block, log index, token_id) so callers can order them, via
     alchemy_getAssetTransfers (works on the free tier; eth_getLogs does not,
     because of its 10-block range cap there).
 
@@ -295,8 +296,10 @@ class ArchiveRPC:
 
     # ---- ERC-721 enumeration ----
     def venft_transfers(self, escrow: str, address: str, direction: str,
-                        block: int) -> list[str]:
-        """veNFT token_ids moved in/out of `address` up to `block`."""
+                        block: int) -> list[tuple[int, int, str]]:
+        """veNFT transfers in/out of `address` up to `block`, each as
+        (block_number, log_index, token_id). The position is what lets a
+        caller put transfers in and out back into chronological order."""
         token_ids, page = [], None
         field = "toAddress" if direction == "in" else "fromAddress"
         while True:
@@ -312,8 +315,15 @@ class ArchiveRPC:
                 f"{self.slug}:xfer:{escrow}:{address}:{direction}:{block}")
             for t in res.get("transfers", []):
                 tid = t.get("tokenId") or t.get("erc721TokenId") or ""
-                if tid:
-                    token_ids.append(tid.lower())
+                if not tid:
+                    continue
+                uid = t.get("uniqueId") or ""
+                if ":log:" not in uid:
+                    raise SystemExit(
+                        f"{self.slug}: asset transfer of token {tid} has no log "
+                        f"index (uniqueId {uid!r}) — can't place it in order")
+                token_ids.append((int(t["blockNum"], 16),
+                                  int(uid.rsplit(":log:", 1)[1]), tid.lower()))
             page = res.get("pageKey")
             if not page:
                 return token_ids
