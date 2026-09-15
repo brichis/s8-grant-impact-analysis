@@ -37,8 +37,13 @@ the second one onto that leg. Decimals are resolved per token, not per leg.
 
 Usage:
   python3 scripts/dune_peak.py output/<grantee> data/dune/<export>.csv [more.csv ...]
-      [--out DIR] [--exclude-chain Soneium]
+      [--out DIR] [--exclude-chain Soneium] [--exclude-type "pool (Infinity)"]
       [--also-token "CHAIN,POOL,SYMBOL,TOKEN_ADDRESS"] [--note TEXT]
+
+--exclude-type drops legs by their `type` the same way --exclude-chain drops
+them by chain: e.g. PancakeSwap's Infinity pools, whose tokens sit in a
+singleton vault and can't be attributed by transfers, so the V3 export can be
+validated on its own.
 """
 import argparse, collections, csv, datetime as dt, re, subprocess, sys
 from pathlib import Path
@@ -76,6 +81,7 @@ def main():
     ap.add_argument("grantee_dir"); ap.add_argument("dune_csv", nargs="+")
     ap.add_argument("--out"); ap.add_argument("--note", default="")
     ap.add_argument("--exclude-chain", action="append", default=[])
+    ap.add_argument("--exclude-type", action="append", default=[])
     ap.add_argument("--also-token", action="append", default=[],
                     help='"CHAIN,POOL,SYMBOL,TOKEN_ADDRESS": another token summed into that leg')
     a = ap.parse_args()
@@ -85,13 +91,14 @@ def main():
     # At a checkpoint before a pool existed, measure.py reports quantity 0 with
     # no resolved address, so keying by address splits one leg's checkpoints
     # across two keys. The address comes from whichever rows did resolve it.
-    qty, dates, label = collections.defaultdict(dict), {}, {}
+    qty, dates, label, ltype = collections.defaultdict(dict), {}, {}, {}
     addr = collections.defaultdict(set)
     for r in csv.DictReader(open(g / "measured_quantities.csv")):
         k = (r["chain"], r["contract"].lower(), r["token"].upper())
         qty[k][r["checkpoint"]] = float(r["quantity"])
         dates[r["checkpoint"]] = r["date"]
         label[k] = (r["pool"], r["token"].upper())
+        ltype[k] = r["type"]
         if (r.get("address") or "").strip():
             addr[k].add(r["address"].lower())
     for k in qty:
@@ -113,7 +120,8 @@ def main():
     p = lambda k: price[k]
     official = float(list(csv.DictReader(open(g / "scorecard.csv")))[0]["delta_tvl_usd"])
 
-    excluded = {k for k in qty if k[0] in a.exclude_chain}
+    excluded = {k for k in qty if k[0] in a.exclude_chain or ltype[k] in a.exclude_type}
+    dropped_what = a.exclude_chain + a.exclude_type
     covered = [k for k in qty if k not in excluded]
     chains = {k[0] for k in covered}
     to_label = {DUNE_CHAIN[c]: c for c in chains}
@@ -163,7 +171,7 @@ def main():
             series[d] = run
         balance[k] = series
 
-    print(f"Legs: {len(covered)} validados" + (f" · {len(excluded)} excluidos ({', '.join(sorted({k[0] for k in excluded}))})" if excluded else "")
+    print(f"Legs: {len(covered)} validados" + (f" · {len(excluded)} excluidos ({', '.join(dropped_what)})" if excluded else "")
           + (f" · {len(dropped)} sin precio ni decimales, omitidos: {dropped}" if dropped else ""))
     bad, checks = 0, 0
     for k in sorted(covered, key=lambda k: (k[0],) + label[k]):
@@ -179,7 +187,8 @@ def main():
     if bad:
         fail(f"{bad} checkpoint(s) no cuadran — el pico no seria fiable")
 
-    excl_delta = sum(float(r["delta_tvl_usd"]) for r in table if r["chain"] in a.exclude_chain)
+    excl_delta = sum(float(r["delta_tvl_usd"]) for r in table
+                     if r["chain"] in a.exclude_chain or r["type"] in a.exclude_type)
     curve = [(d, sum((balance[k][d] - qty[k]["start"]) * p(k) for k in covered)) for d in days]
     at_end = dict(curve)[end]
     # table_contracts.csv rounds price_end to 6 decimals, and that rounded price
@@ -203,7 +212,7 @@ def main():
             tot = sum(qty[k][cp] * p(k) for k in qty if cp in qty[k])
             ex = sum(qty[k][cp] * p(k) for k in excluded if cp in qty[k])
             share.append(f"{ex / tot:.1%}" if tot else "n/a")
-        coverage = (f"excludes {', '.join(a.exclude_chain)} ({' / '.join(share)} of scope TVL at "
+        coverage = (f"excludes {', '.join(dropped_what)} ({' / '.join(share)} of scope TVL at "
                     f"start / snapshot / end; ${excl_delta:,.0f} of the official ΔTVL)")
     else:
         coverage = "100% of scope contracts"

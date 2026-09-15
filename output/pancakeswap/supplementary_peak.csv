@@ -1,0 +1,2 @@
+peak_delta_tvl_usd,peak_date,delta_tvl_at_end_usd,coverage,source,note
+1512961.07,2026-01-21,685922.68,100% of scope contracts,"Dune tokens.transfers, anchored on the pipeline's on-chain start reading","17/17 scope pools: 11 V3 via Dune token transfers; 6 Infinity rebuilt from CLPoolManager events (ModifyLiquidity + each day's last Swap) through pancake_infinity._reserves_from_ticks, reproducing all 48 committed Infinity checkpoints"
