@@ -1,0 +1,2 @@
+peak_delta_tvl_usd,peak_date,delta_tvl_at_end_usd,coverage,source,note
+37309.68,2026-01-28,37309.68,67-wallet cohort in 0xc30ce6a5758786e0f640cc5f881dd96e9a1c5c59 (OP Mainnet),"daily balanceOf + convertToAssets per wallet, with oku_wallet_cohort.py's own helpers",USDC price at end $0.999517 (DefiLlama coins API)
