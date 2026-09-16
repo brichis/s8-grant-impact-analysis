@@ -32,6 +32,7 @@ before trusting output for pools there.
 
 from __future__ import annotations
 
+import pancake_infinity as _clmath
 from rpc import ArchiveRPC
 
 POOL_MANAGER = {
@@ -45,6 +46,12 @@ RESERVES_LENS = {
 }
 
 GET_SLOT0 = "0xc815641c"     # StateView.getSlot0(bytes32)
+# StateView tick-walk reads, from Uniswap's v4-periphery StateView.sol. The
+# selectors are keccak-256 of the verified signatures (PoolId = bytes32); the
+# same computation reproduces GET_SLOT0 and INITIALIZE_TOPIC0 above.
+GET_LIQUIDITY = "0xfa6793d5"       # getLiquidity(bytes32)
+GET_TICK_BITMAP = "0x1c7ccb4c"     # getTickBitmap(bytes32,int16)
+GET_TICK_LIQUIDITY = "0xcaedab54"  # getTickLiquidity(bytes32,int24) -> (gross, net)
 GET_POOL_TVL = "0xf95138f2"  # ReservesLens.getPoolTVL(address,(address,address,uint24,int24,address))
 INITIALIZE_TOPIC0 = "0xdd466e674ea557f56295e2d0218a125ea4b4f0f6f3307b95f85e6110838d6438"
 
@@ -115,8 +122,69 @@ def _pool_key(rpc: ArchiveRPC, chain: str, pool_id: str) -> dict:
     return key
 
 
+def _state_view_reserves(rpc: ArchiveRPC, chain: str, pool_id: str, key: dict,
+                         block: int) -> dict:
+    """Reserves rebuilt from StateView, for blocks before ReservesLens existed.
+
+    StateView shipped with v4 itself; ReservesLens came much later (Optimism:
+    2026-07-13), so a checkpoint older than the lens has no one-call reserve
+    read. This does the lens's work off-chain: read every word of the pool's
+    tick bitmap across the full tick range (no nearby-scan shortcut, so no
+    position can be missed), read liquidityNet at each initialized tick, and
+    sum each interval with the same concentrated-liquidity math the
+    PancakeSwap Infinity path uses. Cost scales with the full range divided by
+    tickSpacing: ~116 bitmap words at spacing 60, ~6,900 at spacing 1.
+
+    Verified against ReservesLens at a block where both exist: all four Super
+    DCA pools matched to float precision. Two on-chain checks guard every
+    call: the active liquidity rebuilt at the current tick must equal
+    getLiquidity(), and liquidityNet must sum to zero across all ticks.
+    """
+    view = STATE_VIEW[chain]
+    w = _clmath._words(rpc.read(view, GET_SLOT0 + pool_id[2:], block))
+    sqrt_price_x96 = int(w[0], 16)
+    if sqrt_price_x96 == 0:
+        # Not initialized yet at this block: the pool genuinely held nothing,
+        # the same zero pancake_infinity returns for PoolNotYetCreated.
+        return {key["currency0"]: 0, key["currency1"]: 0}
+    current_tick = _clmath._to_signed(int(w[1], 16), 256)
+    active = int(rpc.read(view, GET_LIQUIDITY + pool_id[2:], block), 16)
+
+    spacing = key["tick_spacing"]
+    words = range((_clmath.MIN_TICK // spacing) >> 8, ((_clmath.MAX_TICK // spacing) >> 8) + 1)
+    call = lambda data: ("eth_call", [{"to": view, "data": data}, hex(block)],
+                         f"{rpc.slug}:call:{view}:{data}:{block}")
+    bitmaps = rpc.call_batch([call(GET_TICK_BITMAP + pool_id[2:] + _clmath._pad_signed(wd))
+                              for wd in words])
+    ticks = sorted(((wd << 8) + bit) * spacing
+                   for wd, raw in zip(words, bitmaps)
+                   for bit in range(256) if int(raw, 16) >> bit & 1)
+    if not ticks:
+        if active:
+            raise SystemExit(f"v4 pool {pool_id[:10]}… reports liquidity {active} "
+                             f"but no initialized ticks at block {block}.")
+        return {key["currency0"]: 0, key["currency1"]: 0}
+    nets_raw = rpc.call_batch([call(GET_TICK_LIQUIDITY + pool_id[2:] + _clmath._pad_signed(t))
+                               for t in ticks])
+    rpc.flush()
+    net = {t: _clmath._to_signed(int(_clmath._words(raw)[1], 16), 256)
+           for t, raw in zip(ticks, nets_raw)}
+    if sum(net.values()) != 0:
+        raise SystemExit(f"v4 pool {pool_id[:10]}… liquidityNet doesn't sum to zero at "
+                         f"block {block} — the tick read is incomplete.")
+    amount0, amount1, rebuilt = _clmath._reserves_from_ticks(ticks, net, current_tick, sqrt_price_x96)
+    if rebuilt != active:
+        raise SystemExit(f"v4 pool {pool_id[:10]}… rebuilt active liquidity {rebuilt} != "
+                         f"getLiquidity() {active} at block {block}.")
+    return {key["currency0"]: round(amount0), key["currency1"]: round(amount1)}
+
+
 def pool_reserves(rpc: ArchiveRPC, chain: str, pool_id: str, block: int) -> dict:
-    """{currency_address: raw_quantity} for both sides of a v4 pool at `block`."""
+    """{currency_address: raw_quantity} for both sides of a v4 pool at `block`.
+
+    ReservesLens when it exists at `block`; otherwise the StateView tick walk
+    (see _state_view_reserves) — which is what makes checkpoints that predate
+    the lens measurable at all."""
     if chain not in POOL_MANAGER:
         raise SystemExit(
             f"No verified Uniswap v4 deployment addresses for chain '{chain}' "
@@ -125,6 +193,8 @@ def pool_reserves(rpc: ArchiveRPC, chain: str, pool_id: str, block: int) -> dict
             f"add them before trusting output for this chain."
         )
     key = _pool_key(rpc, chain, pool_id)
+    if not rpc.has_code(RESERVES_LENS[chain], block):
+        return _state_view_reserves(rpc, chain, pool_id, key, block)
     calldata = (
         GET_POOL_TVL
         + _pad_addr(POOL_MANAGER[chain])

@@ -90,9 +90,16 @@ def main():
     if extra_contracts - done:
         fail(f"--extra-daily trae contratos que no estan en el output comiteado: {sorted(extra_contracts - done)}")
     to_read = [c for c in cfg.scope_contracts if (c["chain"], c["address"].lower()) not in extra_contracts]
-    bad = sorted({c["type"] for c in to_read} - set(SUPPORTED))
+    # Uniswap v4 pools are read with a StateView tick walk — a few hundred calls
+    # per pool-day at wide tick spacings (Super DCA: spacing 60, 2-9 ticks) —
+    # so they're cheap enough to read daily. v2/v3 pools still go through
+    # dune_peak.py, and Infinity pools through infinity_events_replay.py.
+    import uniswap_v4  # noqa: E402
+    is_v4 = lambda c: c["type"] == "pool" and uniswap_v4.is_pool_id(c["address"])
+    bad = sorted({c["type"] for c in to_read if not is_v4(c)} - set(SUPPORTED))
     if bad:
-        fail(f"tipos {bad} no soportados aqui (pools: dune_peak.py; loans: --extra-daily desde eventos)")
+        fail(f"tipos {bad} no soportados aqui (pools v2/v3: dune_peak.py; Infinity: "
+             f"infinity_events_replay.py; loans: --extra-daily desde eventos)")
     cfg = dataclasses.replace(cfg, scope_contracts=to_read)
 
     start, end = dt.date.fromisoformat(dates["start"]), dt.date.fromisoformat(dates["end"])
@@ -156,7 +163,10 @@ def main():
     with open(out / "supplementary_peak.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["peak_delta_tvl_usd", "peak_date", "delta_tvl_at_end_usd", "coverage", "source", "note"])
-        w.writerow([round(peak_v, 2), peak_d.isoformat(), round(at_end, 2), "100% of scope contracts",
+        unpriced = sorted({k[2] for k in qty if price[k] == 0 and qty[k]["end"] != qty[k]["start"]})
+        coverage = "100% of scope contracts" + (
+            f"; {', '.join(unpriced)} unpriced on DefiLlama, counted at $0 as in the official figure" if unpriced else "")
+        w.writerow([round(peak_v, 2), peak_d.isoformat(), round(at_end, 2), coverage,
                     "daily on-chain reads with the pipeline's own measure.py", a.note])
     print(f"Cierre: curva ${at_end:,.2f} vs scorecard ${official:,.2f} (margen ${slack:,.2f})")
     print(f"Pico en ventana: ${peak_v:,.0f} el {peak_d}  ·  al cierre ${at_end:,.0f}")

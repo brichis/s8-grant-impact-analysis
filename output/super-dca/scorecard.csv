@@ -1,2 +1,2 @@
-grant_id,grantee,window,scope,chains,tvl_start_usd,tvl_end_usd,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,tvl_at_snapshot_usd,delta_tvl_at_snapshot_usd,retention_30d_pct
-APP-0A6ZP40D-82XHOP,Super DCA,2025-11-16 -> 2026-03-12,Global (protocol-wide),"['Optimism', 'Unichain', 'Ink']",0,1685,1685,,150000.0,,False,30000.0,0.06,1802,1802,99.3
+grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+APP-0A6ZP40D-82XHOP,Super DCA,2025-11-16 -> 2026-03-12,Targeted (per-contract),1389.55,,150000.0,,False,30000.0,0.05,1627.86,97.4,-45.67,1343.88

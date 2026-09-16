@@ -1,2 +1,2 @@
 peak_delta_tvl_usd,peak_date,delta_tvl_at_end_usd,coverage,source,note
-4902,2026-01-12,1685.0,"Global Scope: protocol-wide TVL on Optimism, Unichain, Ink",DefiLlama chainTvls daily series (defillama_super-dca_20260910.json),
+2496.36,2026-01-03,1389.55,"100% of scope contracts; DCA unpriced on DefiLlama, counted at $0 as in the official figure",daily on-chain reads with the pipeline's own measure.py,4 Uniswap v4 pools on OP Mainnet read daily with the pipeline's StateView tick walk

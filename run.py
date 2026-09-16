@@ -41,6 +41,7 @@ import metrics          # noqa: E402
 import outputs          # noqa: E402
 import prices as pricing  # noqa: E402
 from registry import load_grant  # noqa: E402
+from chains import canonical  # noqa: E402
 
 BASE = Path(__file__).parent
 OUT_BASE = BASE / "output"
@@ -129,7 +130,13 @@ def main() -> None:
 
     print("[3/4] Prices from DefiLlama…")
     payload = pricing.fetch_protocol(config.defillama_slug, raw_dir=RAW_DIR)
-    series = pricing.price_series(payload, config.defillama_chains)
+    # Prices are only needed on the chains the scope contracts live on. The
+    # grant's own chain list can be wider (Super DCA's lists Unichain and Ink,
+    # which its Global Scope run needed) and DefiLlama may drop a chain from a
+    # protocol's payload, which must not break a Targeted run that never reads
+    # prices there.
+    scope_chains = sorted({canonical(c["chain"]) for c in config.scope_contracts})
+    series = pricing.price_series(payload, scope_chains)
     price_map = pricing.prices_at(series, checkpoints)
     price_map = pricing.fill_price_gaps(price_map, measured, checkpoints)
 
