@@ -141,12 +141,20 @@ def measure_loan_collateral(rpc: ArchiveRPC, escrow: str, loan_address: str,
     Returns (locked_total, nft_count). Enumerates ERC-721 transfers in/out of the
     loan contract up to `block`, then reads locked(tokenId) for each held NFT.
     """
-    moves = (
-        [(tid, "in") for tid in rpc.venft_transfers(escrow, loan_address, "in", block)]
-        + [(tid, "out") for tid in rpc.venft_transfers(escrow, loan_address, "out", block)]
+    # Replay the transfers in the order they happened. This used to
+    # concatenate every transfer in, then every transfer out, and keep each
+    # NFT's last direction — so a veNFT that ever left the loan contract
+    # counted as gone even after it came back. On a lending contract, where
+    # borrowers repay and borrow again, that dropped 23-61% of 40acres'
+    # collateral at every checkpoint. Caught by rebuilding the collateral
+    # from the VotingEscrow's own events (Dune): the old logic reproduced the
+    # published figures exactly, the chronological one matched DefiLlama.
+    moves = sorted(
+        [(b, i, tid, "in") for b, i, tid in rpc.venft_transfers(escrow, loan_address, "in", block)]
+        + [(b, i, tid, "out") for b, i, tid in rpc.venft_transfers(escrow, loan_address, "out", block)]
     )
     held: dict[str, str] = {}
-    for token_id, direction in moves:
+    for _block, _log, token_id, direction in moves:
         held[token_id] = direction
     owned = [tid for tid, d in held.items() if d == "in"]
 
