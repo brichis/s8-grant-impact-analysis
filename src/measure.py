@@ -71,7 +71,19 @@ SYMBOL_ALIASES = {
 }
 
 
+NATIVE = "0x0000000000000000000000000000000000000000"
+
+
+def _is_native(token: str) -> bool:
+    """Uniswap v4 (and Infinity) pools can hold the chain's native ETH, which
+    the PoolKey records as currency address zero — it has no contract, so no
+    symbol() or decimals() to read."""
+    return int(token, 16) == 0
+
+
 def _erc20_decimals(rpc: ArchiveRPC, token: str, block: int) -> int:
+    if _is_native(token):
+        return 18
     return int(rpc.read(token, DECIMALS, block), 16)
 
 
@@ -101,6 +113,13 @@ def _match_label_to_currency(rpc: ArchiveRPC, label: str, currencies: list[str],
     wanted = SYMBOL_ALIASES.get(label.upper(), label.upper())
     found = {}
     for addr in currencies:
+        if _is_native(addr):
+            # Native ETH: matches an "ETH" label directly. (SYMBOL_ALIASES maps
+            # ETH -> WETH for v2/v3 pools, which can only hold the wrapped token.)
+            found["ETH (native)"] = addr
+            if label.upper() == "ETH":
+                return addr
+            continue
         sym = _erc20_symbol(rpc, addr, block).upper()
         found[sym] = addr
         if sym == wanted:
