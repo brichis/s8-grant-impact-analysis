@@ -1,0 +1,2 @@
+peak_delta_tvl_usd,peak_date,delta_tvl_at_end_usd,coverage,source,note
+7150410.74,2026-01-25,6757790.5,100% of scope contracts,daily on-chain reads with the pipeline's own measure.py,"2 USDC vaults read daily with the pipeline's own measure.py; 2 veNFT loan contracts rebuilt from VotingEscrow events (Dune), matching all 8 committed loan checkpoints in quantity and NFT count"
