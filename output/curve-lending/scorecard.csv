@@ -1,2 +1,2 @@
-grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
-APP-VZLIY6MC-SQDRNT,Curve Lending,"2026-04-17 -> 2026-09-08 (incentive ongoing, no end date announced)",Targeted (per-contract),523183.46,3000000.0,,False,,250000.0,2.09,2124082.07,,-0.01,523183.46
+grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,peak_delta_tvl_usd,peak_date,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+APP-VZLIY6MC-SQDRNT,Curve Lending,"2026-04-17 -> 2026-09-15 (incentive ongoing, no end date announced)",Targeted (per-contract),465129.55,3000000.0,,True,,3790184.0,2026-07-07,250000.0,1.86,2124082.07,,0.0,465129.55

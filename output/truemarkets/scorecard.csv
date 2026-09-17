@@ -1,2 +1,2 @@
-grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
-APP-45IYMH9L-PJU5AX,Truemarkets,2025-11-12 -> 2026-03-30,Targeted (per-contract),984741.84,2000000.0,4000000.0,False,False,70000.0,14.07,1583481.87,43.7,-30.63,984711.21
+grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,peak_delta_tvl_usd,peak_date,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+APP-45IYMH9L-PJU5AX,Truemarkets,2025-11-12 -> 2026-03-30,Targeted (per-contract),984741.84,2000000.0,4000000.0,False,False,1776404.0,2025-11-30,70000.0,14.07,1583481.87,43.7,-30.63,984711.21

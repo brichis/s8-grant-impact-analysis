@@ -1,2 +1,2 @@
-grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
-APP-LZT0D77C-HTHMFT,Velodrome Finance,"2026-02-10 -> 2026-08-31 (incentive ongoing, no end date announced)",Targeted (per-contract),-177151.74,3200000.0,8000000.0,True,False,760000.0,-0.23,3864211.53,,2062216.62,1885064.85
+grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,peak_delta_tvl_usd,peak_date,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+APP-LZT0D77C-HTHMFT,Velodrome Finance,"2026-02-10 -> 2026-09-15 (incentive ongoing, no end date announced)",Targeted (per-contract),-463690.01,3200000.0,8000000.0,True,True,10446680.0,2026-03-20,760000.0,-0.61,3864211.53,,1698877.95,1235187.97

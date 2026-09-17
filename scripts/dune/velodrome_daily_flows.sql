@@ -1,4 +1,4 @@
--- v1 velodrome_daily_flows
+-- v2 velodrome_daily_flows
 WITH legs AS (
   SELECT * FROM (VALUES
     ('ink', 0x039fc1099c8f975ab0a0a8f7a68dbf8c18ba03d0, 0x73e0c0d45e048d25fc26fa3159b0aa04bfa4db98),
@@ -53,6 +53,7 @@ WITH legs AS (
     ('ink', 0xf9349c5af43d2abc2758e90cfb341722116fac38, 0xa3d68b74bf0528fdd07263c60d6488749044914b),
     ('optimism', 0x2cbbcbec0c49d2ae2516bd71ab70e561746a7bf7, 0x4200000000000000000000000000000000000006),
     ('optimism', 0x2cbbcbec0c49d2ae2516bd71ab70e561746a7bf7, 0x5a7facb970d094b6c7ff1df0ea68d99e6e73cbff),
+    ('optimism', 0x2fa71491f8070fa644d97b4782db5734854c0f6f, 0x0b2c639c533813f4aa9d7837caf62653d097ff85),
     ('optimism', 0x2fa71491f8070fa644d97b4782db5734854c0f6f, 0x7f5c764cbc14f9669b88837ca1490cca17c31607),
     ('optimism', 0x319c0dd36284ac24a6b2bee73929f699b9f48c38, 0x4200000000000000000000000000000000000006),
     ('optimism', 0x319c0dd36284ac24a6b2bee73929f699b9f48c38, 0x68f180fcce6836688e9084f035309e29bf0a2095),
@@ -106,10 +107,10 @@ flows AS (
     ON t.blockchain = l.chain
    AND t.contract_address = l.token
    AND (t."to" = l.pool OR t."from" = l.pool)
-  WHERE t.blockchain IN ('optimism', 'unichain', 'ink')
-    AND t.block_date BETWEEN DATE '2026-02-11' AND DATE '2026-09-01'
+  WHERE t.blockchain IN ('ink', 'optimism', 'unichain')
+    AND t.block_date BETWEEN DATE '2026-02-10' AND DATE '2026-09-16'
     AND t.block_time > from_unixtime(1770789599)
-    AND t.block_time <= from_unixtime(1788242399)
+    AND t.block_time <= from_unixtime(1789538399)
 ),
 daily AS (
   SELECT chain, pool, token, local_date, SUM(signed_raw) AS net, COUNT(*) AS transfers

@@ -1,2 +1,2 @@
-grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
-APP-HX8QVFXW-RXYI7I,Hydrex,2025-12-19 -> 2026-02-23,Targeted (per-contract),-315659.1,1500000.0,,False,,50000.0,-6.31,-98260.41,33.6,-234857.75,-550516.86
+grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,peak_delta_tvl_usd,peak_date,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+APP-HX8QVFXW-RXYI7I,Hydrex,2025-12-19 -> 2026-02-23,Targeted (per-contract),-315659.1,1500000.0,,False,,186224.0,2026-01-13,50000.0,-6.31,-98260.41,33.6,-234857.75,-550516.86
