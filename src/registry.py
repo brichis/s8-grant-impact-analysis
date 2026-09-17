@@ -215,8 +215,17 @@ class GrantConfig:
         would silently clamp to chain head. See metrics.py:
         end = min(incentive end, this)."""
         if self.incentive_ongoing:
-            return date.today() - timedelta(days=1)
+            last_elapsed = date.today() - timedelta(days=1)
+            return min(last_elapsed, INTERIM_CUTOFF) if INTERIM_CUTOFF else last_elapsed
         return self.incentive_end
+
+
+# Interim grants (still running, no announced end) were measured to a fixed
+# date instead of "yesterday", so the published review stops moving and any
+# re-run reproduces it: every figure quoted for Curve Lending and Velodrome is
+# as of this date. A later review can move the cutoff forward (or set it to
+# None to track the chain head again), which re-reads those grants only.
+INTERIM_CUTOFF = date(2026, 9, 15)
 
 
 def load_scope(grant_id: str) -> list[dict]:

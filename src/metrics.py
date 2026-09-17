@@ -19,7 +19,13 @@ compute one honestly is not available, so no such split is invented here.
 
 Supplementary context (not S8 success metrics, labelled as such in outputs):
   * Retention +30d — value-weighted token retention 30 days after incentive end.
-  * Milestones: M1 is tested against the snapshot checkpoint, M2 (target_total)
+  * Milestones: both are tested against the highest ΔTVL the grant reached on
+    any day inside the incentive window (see `daily` in compute). A target that
+    was genuinely reached counts as reached, even if the liquidity left later;
+    the snapshot and end figures stay in the outputs as data. To keep this
+    honest against one-day spikes, the series it reads is a validated daily
+    series, not a single read.
+  * Historic rule (kept for reference): M1 was tested against the snapshot, M2 (target_total)
     against the end checkpoint.
   * Price-vs-quantity wedge — the share of the USD change that is token-price
     movement, which the fixed-end-price formula deliberately excludes.
@@ -57,6 +63,8 @@ class GrantResult:
     target_total: float | None
     milestone1_met: bool | None
     total_target_met: bool | None
+    peak_delta_tvl_usd: float | None
+    peak_date: str | None
     op_budget: float | None
     usd_per_op: float | None
     delta_tvl_at_snapshot_usd: float | None
@@ -86,11 +94,16 @@ def _pivot_quantities(measured):
     return meta.join(wide)
 
 
-def compute(config, measured, prices) -> GrantResult:
+def compute(config, measured, prices, daily=None) -> GrantResult:
     """Per-contract and grant-level S8 metrics.
 
     measured : per-contract quantities (measure.measure_all output).
     prices   : {(defillama_chain, TOKEN): {"start":p,"snapshot":p,"end":p}}.
+    daily    : [(date, delta_tvl_usd), ...] inside the incentive window, at the
+               same fixed end prices as delta_tvl_usd — the validated daily
+               series the milestones are judged on. Without it both verdicts
+               are None (unevaluated), never False: a missing series is not
+               evidence that a target was missed.
     """
     wide = _pivot_quantities(measured)
 
@@ -131,10 +144,17 @@ def compute(config, measured, prices) -> GrantResult:
 
     # None, not False, when the snapshot wasn't measured: unevaluated is not
     # the same as missed.
-    m1_met = (None if at_snapshot is None or not config.target_milestone1
-              else at_snapshot >= config.target_milestone1)
-    total_met = (total_delta >= config.target_total
-                 if config.target_total else None)
+    # Milestones are judged on the peak of the daily series: the question is
+    # whether the grant ever reached the target inside its incentive window,
+    # not whether it happened to be above it on one particular date.
+    peak_value = peak_date = None
+    if daily:
+        peak_date, peak_value = max(daily, key=lambda dv: dv[1])
+        peak_date = str(peak_date)
+    m1_met = (None if peak_value is None or not config.target_milestone1
+              else peak_value >= config.target_milestone1)
+    total_met = (None if peak_value is None or not config.target_total
+                 else peak_value >= config.target_total)
     usd_per_op = (total_delta / config.budget_op) if config.budget_op else None
 
     # Retention needs an actual +30d read. For a still-running grant run.py
@@ -171,6 +191,8 @@ def compute(config, measured, prices) -> GrantResult:
         target_milestone1=config.target_milestone1,
         target_total=config.target_total,
         milestone1_met=m1_met, total_target_met=total_met,
+        peak_delta_tvl_usd=round(peak_value, 2) if peak_value is not None else None,
+        peak_date=peak_date,
         op_budget=config.budget_op,
         usd_per_op=round(usd_per_op, 2) if usd_per_op is not None else None,
         delta_tvl_at_snapshot_usd=round(at_snapshot, 2) if at_snapshot is not None else None,

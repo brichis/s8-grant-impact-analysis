@@ -25,6 +25,7 @@ Supplementary context (S7-derived, labelled non-S8): retention +30d, price-qty w
 
 from __future__ import annotations
 
+import csv
 import re
 import sys
 from datetime import date
@@ -53,23 +54,42 @@ def _slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
+def _read_daily_curve(out_dir: Path) -> list:
+    """The grant's validated daily ΔTVL series, in-window days only.
+
+    Milestones are judged on the highest value this series reached (see
+    metrics.compute). The series is built by the supplementary scripts from the
+    same on-chain checkpoints this run measures, and each one refuses to write
+    unless it reproduces every one of them — so it is evidence of the same
+    quality as the checkpoints themselves, at daily resolution.
+    """
+    path = out_dir / "supplementary_daily_curve.csv"
+    if not path.exists():
+        return []
+    with path.open() as fh:
+        return [(row["Date"], float(row["ΔTVL (USD)"]))
+                for row in csv.DictReader(fh) if row["in_window"] == "True"]
+
+
 def _print_milestones(config, result) -> None:
-    """M1 is judged at the snapshot, M2 at the end (see metrics.compute).
-    Printing the figure each verdict rests on keeps the two from being read
-    against the wrong checkpoint, which is how a met M1 came to report as
-    missed."""
-    if config.target_milestone1:
-        verdict = ("not evaluated (no snapshot measured)"
-                   if result.milestone1_met is None
-                   else ("MET" if result.milestone1_met else "not met"))
-        at = (f" — ${result.delta_tvl_at_snapshot_usd:,.0f} at snapshot"
-              if result.delta_tvl_at_snapshot_usd is not None else "")
-        print(f"    M1 vs ${config.target_milestone1:,.0f}: {verdict}{at}")
-    if config.target_total:
-        end_delta = getattr(result, "delta_tvl_usd", None)
-        at = f" — ${end_delta:,.0f} at end" if end_delta is not None else ""
-        print(f"    M2 vs ${config.target_total:,.0f}: "
-              f"{'MET' if result.total_target_met else 'not met'}{at}")
+    """Both milestones are judged on the peak of the daily series: was the
+    target ever reached inside the incentive window? The snapshot and end
+    figures are printed too, as data — they no longer decide anything."""
+    peak = getattr(result, "peak_delta_tvl_usd", None)
+    at_peak = (f" — reached ${peak:,.0f} on {result.peak_date}"
+               if peak is not None else "")
+    for target, met, label in ((config.target_milestone1, result.milestone1_met, "M1"),
+                               (config.target_total, result.total_target_met, "M2")):
+        if not target:
+            continue
+        verdict = ("not evaluated (no daily series — run the supplementary "
+                   "script for this grantee)" if met is None
+                   else ("MET" if met else "not met"))
+        print(f"    {label} vs ${target:,.0f}: {verdict}{at_peak if met is not None else ''}")
+    snap = result.delta_tvl_at_snapshot_usd
+    if snap is not None:
+        print(f"    (data only: ${snap:,.0f} at snapshot, "
+              f"${result.delta_tvl_usd:,.0f} at end)")
 
 
 def main() -> None:
@@ -140,7 +160,8 @@ def main() -> None:
     price_map = pricing.prices_at(series, checkpoints)
     price_map = pricing.fill_price_gaps(price_map, measured, checkpoints)
 
-    result = metrics.compute(config, measured, price_map)
+    result = metrics.compute(config, measured, price_map,
+                             daily=_read_daily_curve(OUT_DIR))
 
     print(f"\n  S8 ΔTVL (Targeted): ${result.delta_tvl_usd:,.0f}")
     for c in result.contracts:

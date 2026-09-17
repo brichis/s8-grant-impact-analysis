@@ -1,2 +1,2 @@
-grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
-APP-CS0S7GDN-MR3JI7,40acres.finance,2025-10-15 -> 2026-01-27,Targeted (per-contract),6757802.86,3500000.0,9000000.0,False,False,200000.0,33.79,-2101040.29,109.0,-14182501.45,-7424698.58
+grant_id,grantee,window,scope,delta_tvl_usd,target_milestone1,target_total,milestone1_met,total_target_met,peak_delta_tvl_usd,peak_date,op_budget,usd_per_op,delta_tvl_at_snapshot_usd,retention_30d_pct,price_qty_wedge_usd,usd_level_change
+APP-CS0S7GDN-MR3JI7,40acres.finance,2025-10-15 -> 2026-01-27,Targeted (per-contract),6757802.86,3500000.0,9000000.0,True,False,7150411.0,2026-01-25,200000.0,33.79,-2101040.29,109.0,-14182501.45,-7424698.58
