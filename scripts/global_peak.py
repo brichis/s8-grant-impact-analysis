@@ -47,7 +47,7 @@ def main():
     total = lambda day: sum(global_scope._value_at(series[c], day) or 0 for c in chains)
     base = total(start_s)
     if round(total(end_s) - base, 2) != round(official, 2):
-        fail(f"el payload da ΔTVL ${total(end_s) - base:,.2f} y el scorecard ${official:,.2f} — "
+        fail(f"the payload gives ΔTVL ${total(end_s) - base:,.2f} and the scorecard ${official:,.2f} — "
              f"is not the same figure, so no peak is computed from it")
 
     start, end = dt.date.fromisoformat(start_s), dt.date.fromisoformat(end_s)
