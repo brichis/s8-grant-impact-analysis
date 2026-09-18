@@ -67,7 +67,7 @@ def main():
         w.writerow([round(peak_v, 2), peak_d.isoformat(), round(official, 2),
                     f"Global Scope: protocol-wide TVL on {', '.join(chains)}",
                     f"DefiLlama chainTvls daily series ({Path(a.payload).name})", a.note])
-    print(f"Comprobacion: el payload reproduce el ΔTVL del scorecard (${official:,.2f})")
+    print(f"Check: the payload reproduces the scorecard ΔTVL (${official:,.2f})")
     print(f"Peak in window: ${peak_v:,.0f} on {peak_d}  ·  ${official:,.0f} at the end  ·  {len(curve)} days (+30d kept for context)")
     print(f"Wrote {out}/: supplementary_peak.csv, supplementary_daily_curve.csv")
 

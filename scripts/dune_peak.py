@@ -112,7 +112,7 @@ def main():
         chain, pool, sym, tok = [x.strip() for x in spec.split(",")]
         k = (chain, pool.lower(), sym.upper())
         if k not in qty:
-            fail(f"--also-token apunta a un leg que no existe: {k}")
+            fail(f"--also-token points at a leg that doesn't exist: {k}")
         by_token[(chain, pool.lower(), tok.lower())] = k
         also.append(f"{label[k][0]} ({chain}) also sums {tok.lower()}")
     table = list(csv.DictReader(open(g / "table_contracts.csv")))
@@ -133,15 +133,15 @@ def main():
             if "blockchain" in r:
                 chain = to_label.get(r["blockchain"])
                 if chain is None:
-                    fail(f"el export trae la cadena '{r['blockchain']}', que no esta en el scope cubierto")
+                    fail(f"the export has chain '{r['blockchain']}', which is not in the covered scope")
             elif len(chains) == 1:
                 chain = next(iter(chains))
             else:
-                fail("grantee multi-cadena: el export necesita una columna 'blockchain'")
+                fail("multi-chain grantee: the export needs a 'blockchain' column")
             tok = r["token"].lower()
             k = by_token.get((chain, r["pool"].lower(), tok))
             if k is None or k in excluded:
-                fail(f"Dune devolvio un leg que el pipeline no mide: {chain} {r['pool']} {r['token']}")
+                fail(f"Dune returned a leg the pipeline doesn't measure: {chain} {r['pool']} {r['token']}")
             raw[(k, tok)][r["local_date"][:10]] += int(r["net_raw"])
             if (r.get("decimals") or "").strip() not in ("", "<nil>", "null"):
                 dec[(chain, tok)] = int(float(r["decimals"]))
