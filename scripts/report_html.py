@@ -429,6 +429,36 @@ TEMPLATE = """<!doctype html>
       <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time, and I did not find a way to verify how much was actually deployed. There may well be one — I did not pursue it.</li>
     </ul>
   </div>
+  <h3>How it was built</h3>
+  <div class="measure">
+    <ul>
+      <li><strong>On-chain reads:</strong> an Alchemy archive node — <code>eth_call</code> at a
+      block per checkpoint, <code>eth_getCode</code> to date deployments by binary search,
+      <code>eth_getLogs</code> for one-off events and <code>alchemy_getAssetTransfers</code> for
+      ERC-721 movements — with a local cache so every figure can be recomputed without paying for
+      the reads twice.</li>
+      <li><strong>Protocol shapes read directly:</strong> ERC-4626 vaults, Aave-style aTokens,
+      Uniswap v3 and v4 (tick-walked through StateView), PancakeSwap Infinity, Velodrome and
+      Aerodrome VotingEscrow veNFTs, and Curve LlamaLend. Function selectors and event topics were
+      derived with keccak from signatures verified in each protocol's source, never copied from
+      memory.</li>
+      <li><strong>Dune (DuneSQL / Trino):</strong> five saved queries rebuild daily balances from
+      token transfers and from pool-manager and VotingEscrow events, where a daily on-chain read
+      would have been too slow.</li>
+      <li><strong>DefiLlama:</strong> protocol TVL series and historical token prices, including the
+      fixed end-date prices the S8 formula uses.</li>
+      <li><strong>Karma API:</strong> each application's real submission and approval dates.</li>
+      <li><strong>The registry is a spreadsheet:</strong> grants, windows and scope contracts live
+      in Google Sheets and are read as CSV at run time, so a human can correct a date without
+      touching code.</li>
+      <li><strong>Python</strong> (pandas, requests) for the pipeline, <strong>Plotly</strong> for
+      the charts on this page, and Blockscout and Etherscan for manual verification.</li>
+      <li><strong>Every derived number is validated before it is used:</strong> each daily series
+      has to reproduce every on-chain checkpoint, and the reconstructions cross-check against each
+      other — the veNFT rebuild against DefiLlama, the v4 tick walk against Uniswap's own
+      ReservesLens.</li>
+    </ul>
+  </div>
   <div class="callout measure">
     <p style="margin:0"><strong>If you have information to add</strong> — you were on one of these
     teams, you know a program that ran without being reported, or you can identify a payment we
