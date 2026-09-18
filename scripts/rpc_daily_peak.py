@@ -63,6 +63,10 @@ def main():
     ap.add_argument("--probe", type=int, default=0, help="time N cold mid-window days and stop")
     ap.add_argument("--out"); ap.add_argument("--note", default="")
     ap.add_argument("--extra-daily", action="append", default=[])
+    ap.add_argument("--allow-pools", action="store_true",
+                    help="read plain pools daily too — cheap for a handful of them "
+                         "(a balanceOf per leg), which beats a Dune round trip; "
+                         "for fifty pools use dune_peak.py instead")
     a = ap.parse_args()
     g = Path(a.grantee_dir); out = Path(a.out) if a.out else g
 
@@ -96,7 +100,8 @@ def main():
     # dune_peak.py, and Infinity pools through infinity_events_replay.py.
     import uniswap_v4  # noqa: E402
     is_v4 = lambda c: c["type"] == "pool" and uniswap_v4.is_pool_id(c["address"])
-    bad = sorted({c["type"] for c in to_read if not is_v4(c)} - set(SUPPORTED))
+    cheap_pool = lambda c: is_v4(c) or (a.allow_pools and c["type"] == "pool")
+    bad = sorted({c["type"] for c in to_read if not cheap_pool(c)} - set(SUPPORTED))
     if bad:
         fail(f"tipos {bad} no soportados aqui (pools v2/v3: dune_peak.py; Infinity: "
              f"infinity_events_replay.py; loans: --extra-daily desde eventos)")

@@ -265,6 +265,10 @@ def load_scope(grant_id: str) -> list[dict]:
         # chain distinguishable in output labels.
         token0 = str(_cell(r, "token0") or "").strip()
         token1 = str(_cell(r, "token1") or "").strip()
+        # A third token column, for pools that hold more than a pair (Curve's
+        # tricrypto pools). Optional: the tab predates it, and every two-sided
+        # pool leaves it blank.
+        token2 = str(_cell(r, "token2") or "").strip() if "token2" in smatch.columns else ""
         details = str(_cell(r, "pool_details") or "").strip()
         scope_id = str(_cell(r, "scope_id") or "?").strip()
         if not token0:
@@ -278,6 +282,7 @@ def load_scope(grant_id: str) -> list[dict]:
             "address": addr.strip().lower(),
             "token0": token0,
             "token1": token1,
+            "token2": token2,
             "details": details,
             # display only — charts and console lines
             "label": " ".join(x for x in (

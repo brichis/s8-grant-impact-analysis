@@ -1,2 +1,2 @@
 peak_delta_tvl_usd,peak_date,delta_tvl_at_end_usd,coverage,source,note
-3790183.98,2026-07-07,465129.53,100% of scope contracts,daily on-chain reads with the pipeline's own measure.py,"3 ERC-4626 LlamaLend vaults on OP Mainnet; daily totalAssets() read with the pipeline's own measure.py; interim window, measured to the 2026-09-15 cutoff"
+3777079.76,2026-07-07,442797.21,100% of scope contracts,daily on-chain reads with the pipeline's own measure.py,"3 LlamaLend vaults read daily on-chain; the 3 OP-incentivised Curve pools rebuilt from Dune token transfers; interim window, measured to the 2026-09-15 cutoff"
