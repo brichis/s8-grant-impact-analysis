@@ -231,7 +231,7 @@ TEMPLATE = """<!doctype html>
   <h2>The short version</h2>
   <div class="keys">
     <div class="key" style="--accent: {c[coral]}"><span class="label">Measured impact</span>
-      <span class="n">+$8.03M</span><span class="t">ΔTVL across the nine programs — $3.63 per OP. Six of nine were positive.</span></div>
+      <span class="n">+$8.00M</span><span class="t">ΔTVL across the nine programs — $3.62 per OP. Six of nine were positive.</span></div>
     <div class="key" style="--accent: {c[lilac]}"><span class="label">Concentration</span>
       <span class="n">84%</span><span class="t">of all the liquidity came from one grant, 40acres.finance.</span></div>
     <div class="key" style="--accent: {c[mint]}"><span class="label">Milestones</span>
@@ -273,8 +273,8 @@ TEMPLATE = """<!doctype html>
 {rows}
       </tbody>
       <tfoot><tr>
-        <th scope="row">Total</th><td class="num">2,210,000</td><td class="num">$8,026,311</td>
-        <td class="num">3.63</td><td></td><td class="mark">5 met</td><td></td><td class="mark">1 met</td>
+        <th scope="row">Total</th><td class="num">2,210,000</td><td class="num">$8,003,979</td>
+        <td class="num">3.62</td><td></td><td class="mark">5 met</td><td></td><td class="mark">1 met</td>
         <td></td><td></td><td></td>
       </tr></tfoot>
     </table>
