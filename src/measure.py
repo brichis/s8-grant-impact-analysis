@@ -199,6 +199,14 @@ def _verify_pool_contract(rpc: ArchiveRPC, address: str, block: int) -> None:
     the standard v2/v3 pool interface (token0()/token1()) before trusting a
     balanceOf read on it.
     """
+    # Curve pools answer coins(0) instead of token0()/token1(); accept either
+    # interface, and only either — an address that answers neither is not a
+    # pool and must not be read with balanceOf.
+    try:
+        if rpc.read(address, COINS + _pad_uint(0), block)[-40:] != "0" * 40:
+            return
+    except RuntimeError:
+        pass
     for selector, name in ((TOKEN0, "token0()"), (TOKEN1, "token1()")):
         try:
             raw = rpc.read(address, selector, block)
@@ -229,6 +237,40 @@ def measure_pool_reserve(rpc: ArchiveRPC, pool_address: str, token: str,
     return int(raw, 16) / 10 ** decimals
 
 
+def _pad_uint(n: int) -> str:
+    return hex(n)[2:].rjust(64, "0")
+
+
+COINS = "0xc6610657"        # coins(uint256) — Curve's accessor for pool i-th token
+
+
+def _pool_currencies(rpc: ArchiveRPC, address: str, block: int) -> list[str]:
+    """The tokens a pool holds, as addresses.
+
+    Uniswap-style pairs answer token0()/token1(); Curve pools don't — they
+    expose coins(i) and can hold three or more tokens, which is why the scope
+    tab has a third token column. Neither shape is guessed: token0() is tried
+    first and coins(i) only if that reverts, and the walk stops at the first
+    index that reverts, so the list is exactly what the pool reports.
+    """
+    try:
+        return ["0x" + rpc.read(address, TOKEN0, block)[-40:],
+                "0x" + rpc.read(address, TOKEN1, block)[-40:]]
+    except RuntimeError:
+        pass
+    coins = []
+    for i in range(8):
+        try:
+            coins.append("0x" + rpc.read(address, COINS + _pad_uint(i), block)[-40:])
+        except RuntimeError:
+            break
+    if not coins:
+        raise SystemExit(
+            f"{address} answers neither token0()/token1() nor coins(0) at block "
+            f"{block} — not a pool shape this pipeline knows how to read.")
+    return coins
+
+
 def _scope_tokens(contract: dict) -> list[str]:
     """The registry's token symbols for a scope row, uppercased.
 
@@ -239,7 +281,8 @@ def _scope_tokens(contract: dict) -> list[str]:
     both reserves — standard pool-TVL semantics, and no change to the S8
     formula, since each leg is just another term in the same per-contract sum.
     """
-    return [t.upper() for t in (contract["token0"], contract["token1"]) if t]
+    return [t.upper() for t in (contract["token0"], contract["token1"],
+                                contract.get("token2")) if t]
 
 
 def format_quantity(q: float) -> str:
@@ -453,9 +496,7 @@ def measure_contract(rpc: ArchiveRPC, contract: dict, day: date) -> dict:
             )
 
         _verify_pool_contract(rpc, address, block)
-        token0 = "0x" + rpc.read(address, TOKEN0, block)[-40:]
-        token1 = "0x" + rpc.read(address, TOKEN1, block)[-40:]
-        remaining = [token0, token1]
+        remaining = _pool_currencies(rpc, address, block)
         legs = {}
         leg_addresses = {}
         for label in labels:
