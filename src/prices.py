@@ -15,6 +15,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import math
+
 import pandas as pd
 import requests
 
@@ -125,12 +127,23 @@ def fill_price_gaps(price_map: dict, measured: pd.DataFrame, checkpoints: dict) 
     with_addr = measured.dropna(subset=["address"])
     needed = with_addr[["chain", "token", "address"]].drop_duplicates(
         subset=["chain", "token"])
+    def _known(value) -> bool:
+        """A checkpoint the protocol series actually priced.
+
+        The series can carry a key whose value is NaN — the chain's token
+        breakdown existed that day but not for this token, which is how CRV
+        reached a Curve run with a price at start and end and nothing at the
+        snapshot. Treating that as "present" left the gap unfilled and turned
+        the whole snapshot total into NaN, so it counts as missing here.
+        """
+        return value is not None and not (isinstance(value, float) and math.isnan(value))
+
     gaps = []  # [(defillama_chain_label, TOKEN, address)]
     for _, r in needed.iterrows():
         chain_label = canonical(r["chain"])
         token = str(r["token"]).upper()
         have = price_map.get((chain_label, token), {})
-        if set(checkpoints) <= set(have):
+        if set(checkpoints) <= {k for k, v in have.items() if _known(v)}:
             continue
         gaps.append((chain_label, token, r["address"]))
 
@@ -151,5 +164,7 @@ def fill_price_gaps(price_map: dict, measured: pd.DataFrame, checkpoints: dict) 
             quote = quotes.get(slug_key)
             if quote is None:
                 continue
-            price_map.setdefault((chain, token), {})[name] = float(quote["price"])
+            slot = price_map.setdefault((chain, token), {})
+            if not _known(slot.get(name)):          # never overwrite a real price
+                slot[name] = float(quote["price"])
     return price_map
