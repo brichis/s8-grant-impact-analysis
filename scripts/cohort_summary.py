@@ -57,6 +57,11 @@ OUT = REPO / "output"
 OP_COIN = "optimism:0x4200000000000000000000000000000000000042"
 
 
+# Per-application dates from Karma, when scripts/karma_dates.py has fetched
+# them: creation, and the real approval date rather than a per-cycle proxy.
+KARMA_DATES = REPO / "data" / "karma_dates.json"
+
+
 # The registry has no approval date: `initial_delivery_date` is the day the
 # council's wallet sent the OP to the Hedgey claim contract, which is a
 # consequence of approval, not approval itself. The grants of each cycle were
@@ -71,6 +76,20 @@ CYCLE_APPROVED = {
     "41": dt.date(2025, 9, 12), "42": dt.date(2025, 10, 2), "43": dt.date(2025, 10, 23),
     "44": dt.date(2025, 11, 14), "46": dt.date(2025, 12, 19),
 }
+
+
+KARMA: dict = {}
+
+
+def karma_dates() -> dict:
+    """Per-application dates from Karma (scripts/karma_dates.py), if fetched.
+
+    Karma knows when each application was created and when it was approved,
+    which is what the timing figures want; the cycle-report dates below are
+    only a fallback for a grant Karma has no record of."""
+    if not KARMA_DATES.exists():
+        return {}
+    return json.loads(KARMA_DATES.read_text())
 
 
 def op_price(day: dt.date) -> float:
@@ -183,7 +202,10 @@ def build(directory: Path, grantees: dict, windows: dict) -> dict:
     delivered = registry._to_date(registry._cell(g, "initial_delivery_date"))
     claimed = registry._to_date(registry._cell(g, "date_tx1"))
     cycle = str(registry._cell(g, "cycle") or "").strip()
-    approved = CYCLE_APPROVED.get(cycle)
+    karma = (KARMA or {}).get(str(registry._cell(g, "grant_id") or "").strip(), {})
+    approved = (dt.date.fromisoformat(karma["approved_at"]) if karma.get("approved_at")
+                else CYCLE_APPROVED.get(cycle))
+    created = dt.date.fromisoformat(karma["created"]) if karma.get("created") else None
     snapshot = registry._to_date(registry._cell(w, "snapshot"))
     op_at_claim = op_price(claimed) if claimed else None
     op_at_end = op_price(end)
@@ -204,7 +226,10 @@ def build(directory: Path, grantees: dict, windows: dict) -> dict:
         "approved": approved.isoformat() if approved else None,
         "claimed": claimed.isoformat() if claimed else None,
         "cycle": cycle or None,
+        "created": created.isoformat() if created else None,
         "approved": approved.isoformat() if approved else None,
+        "approval_source": "karma" if karma.get("approved_at") else ("cycle report" if approved else None),
+        "created_to_approval_days": (approved - created).days if (approved and created) else None,
         "delivered_to_claim_contract": delivered.isoformat() if delivered else None,
         "approval_to_start_days": (start - approved).days if approved else None,
         "approval_to_delivery_days": (delivered - approved).days if (approved and delivered) else None,
@@ -246,6 +271,7 @@ def cohort_stats(gs: list[dict]) -> dict:
     lag = [g["approval_to_start_days"] for g in gs if g["approval_to_start_days"] is not None]
     lag_del = [g["delivery_to_start_days"] for g in gs if g["delivery_to_start_days"] is not None]
     lag_pay = [g["approval_to_delivery_days"] for g in gs if g["approval_to_delivery_days"] is not None]
+    lag_rev = [g["created_to_approval_days"] for g in gs if g["created_to_approval_days"] is not None]
     claim_lag = [g["claim_to_start_days"] for g in gs if g["claim_to_start_days"] is not None]
     given_back = [(g["weeks"], g["share_of_peak_given_back"]) for g in gs
                   if g["share_of_peak_given_back"] is not None]
@@ -289,6 +315,9 @@ def cohort_stats(gs: list[dict]) -> dict:
         "delivery_to_start_days": {"median": statistics.median(lag_del) if lag_del else None,
                                    "mean": round(statistics.mean(lag_del), 1) if lag_del else None,
                                    "n": len(lag_del)},
+        "created_to_approval_days": {"median": statistics.median(lag_rev) if lag_rev else None,
+                                     "mean": round(statistics.mean(lag_rev), 1) if lag_rev else None,
+                                     "n": len(lag_rev)},
         "approval_to_delivery_days": {"median": statistics.median(lag_pay) if lag_pay else None,
                                       "mean": round(statistics.mean(lag_pay), 1) if lag_pay else None,
                                       "n": len(lag_pay)},
@@ -335,6 +364,8 @@ CSV_COLUMNS = ["slug", "grantee", "grant_id", "scope", "ongoing", "op_budget", "
 
 
 def main() -> None:
+    global KARMA
+    KARMA = karma_dates()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", type=Path, default=REPO / "reports")
     a = ap.parse_args()

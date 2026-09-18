@@ -243,7 +243,7 @@ TEMPLATE = """<!doctype html>
     <ul>
       <li><strong>Programs peak early and give it back.</strong> The median program peaked on day 56 — 41% of the way in — and three of the five that met M1 were below that target again by the end.</li>
       <li><strong>OP fell 55%</strong> between the average program start and the average program end. The OP behind these grants was worth $708k when claimed and $291k when the programs ended.</li>
-      <li><strong>Grantees were not the slow part.</strong> The median program started 15 days after the OP reached its claim contract — and 45 days after the cycle that approved it, 34 of which were the wait for that first disbursement. The year in the schedule was the allowance, not the work.</li>
+      <li><strong>Grantees were not the slow part.</strong> From application to the first day of incentives took a median of 71 days: 35 waiting for the decision, 34 more for the money to reach the claim contract, and 15 for the team to launch. The year in the schedule was the allowance, not the work.</li>
       <li><strong>Staging worked.</strong> 2.47M OP was never released because later tranches depended on progress — but 340k OP was claimed by grants that never ran anything.</li>
     </ul>
   </div>
@@ -307,18 +307,26 @@ TEMPLATE = """<!doctype html>
   </div>
 
   <h3>2 · Twelve months is the allowance; three is the useful deadline</h3>
-  <p class="measure">Grants in this season were approved between September and December 2025,
-  cycle by cycle. Teams had about a year to run the work end to end — and a year on, several
-  approved grants still have nothing to show, while the ones that delivered did not need the year.
-  Counted from each cycle's grants report, the median program launched <strong>45 days after
-  approval</strong>: 34 of those days were the wait for the first disbursement, and only 15 were the
-  team's own (3, once the OP had been claimed).</p>
+  <p class="measure">Every grant in this season was approved between 2 October and 17 December
+  2025. Teams had about a year to run the work end to end — and a year on, several approved grants
+  still have nothing to show, while the ones that delivered did not need the year. From the
+  application going in to the first day of incentives the median was <strong>71 days</strong>, and
+  only 15 of them belonged to the team.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Stage</th><th class="num">Median</th><th class="num">Range</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Application submitted → approved</th><td class="num">35 days</td><td class="num">16–74</td></tr>
+      <tr><th scope="row">Approved → OP in the claim contract</th><td class="num">34 days</td><td class="num">13–61</td></tr>
+      <tr><th scope="row">Claim contract → incentives live</th><td class="num">15 days</td><td class="num">−22 to 136</td></tr>
+      <tr><th scope="row">Application → incentives live</th><td class="num">71 days</td><td class="num">51–218</td></tr>
+    </tbody>
+  </table></div>
   <p class="measure"><strong>40acres is the model case:</strong> application created Aug 25, 2025,
-  approved in the Cycle 41 report on Sep 12, first disbursement Sep 30, claimed Oct 7, distribution
-  started Oct 15, program finished Jan 27, 2026 — the best result in the cohort. At the other end,
-  Curve Lending started 197 days after its cycle's report. <strong>Give three months from approval
-  to launch, not twelve</strong>, with a deadline for the final report — and count the disbursement
-  inside those three months, since it is a third of the wait.</p>
+  approved Oct 2, claimed Oct 7, distribution started Oct 15, program finished Jan 27, 2026 — 51
+  days from application to launch, and the best result in the cohort. At the other end, Curve
+  Lending took 218. <strong>Give three months from approval to launch, not twelve</strong>, with a
+  deadline for the final report — and count the disbursement inside those three months, since it
+  took as long as the review itself.</p>
 
   <h3>3 · The extra weeks bought decay, not liquidity</h3>
   <p class="measure">Programs ran a median of 16.6 weeks, from 9 to 31 — but the peak landed at a
@@ -349,8 +357,9 @@ TEMPLATE = """<!doctype html>
     <p>With both councils dissolved, nobody is verifying these milestones or deciding what happens
     to OP that was released and never used. <strong>That is an opening for the community at
     large:</strong> watch whether these programs are delivered, and where they are not, claw back
-    what can still be recovered. Most of these grants have just passed their one-year mark or are
-    weeks away from it.</p>
+    what can still be recovered. <strong>The fifteen grants that never ran a program were approved
+    between 16 October and 17 December 2025</strong>, so each reaches one year between October and
+    December 2026: none has passed that mark yet, and all of them do within three months.</p>
   </div>
 
   <h3>5 · OP moved too much for USD-denominated planning</h3>
@@ -415,7 +424,7 @@ TEMPLATE = """<!doctype html>
       <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized.</li>
       <li><strong>Scope.</strong> Targeted, contract by contract. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
       <li><strong>Claims.</strong> Read on Blockscout from the Hedgey claim contract the council paid into. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
-      <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first; the grantee claims it from there. The registry's delivery date is that first transfer, not the approval; approval dates come from each cycle's grants report on the governance forum (Cycles 41–46, 12 Sep to 19 Dec 2025).</li>
+      <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first; the grantee claims it from there. The registry's delivery date is that first transfer, not the approval; application and approval dates come from Karma's own records for each application.</li>
       <li><strong>Curve Lending's window opens before its markets existed.</strong> Its three LlamaLend vaults — every market that factory has on OP Mainnet — were deployed on 9–10 June 2026, while the recorded incentive start is 17 April, which is why its curve sits flat at zero until mid-June. The zero baseline is correct; the start date is worth confirming.</li>
       <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time, and I did not find a way to verify how much was actually deployed. There may well be one — I did not pursue it.</li>
     </ul>
