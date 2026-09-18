@@ -3,7 +3,7 @@
   chart_delta_tvl_by_contract.csv  one bar per scope contract (its ΔTVL) — the
                                    primary Targeted-Scope visual; shows which
                                    pool drove the result.
-  chart_delta_tvl_checkpoints.csv  grant-total ΔTVL at M1 / M2 / +30d.
+  chart_delta_tvl_checkpoints.csv  grant-total ΔTVL at snapshot / end / +30d.
   table_contracts.csv              per-contract qty_start/qty_end/price/ΔTVL.
   scorecard.csv                    one-row grant summary.
 """
@@ -13,6 +13,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+
+# Display labels for chart_delta_tvl_checkpoints.csv. Milestones are judged on
+# the peak of the daily series (metrics.compute), so no checkpoint is "the M1
+# date" or "the M2 date" any more: the snapshot is a dated marker, the end is
+# the S8 figure, +30d is retention context.
+CHECKPOINT_LABELS = [("Snapshot", "snapshot"),
+                     ("Incentive end", "end"),
+                     ("+30 days (post-incentive)", "plus30d")]
 
 
 def write_contract_chart(result, out_dir: Path) -> Path:
@@ -29,9 +37,7 @@ def write_checkpoint_chart(config, measured, prices, out_dir: Path) -> Path:
     from metrics import _pivot_quantities
     wide = _pivot_quantities(measured)
 
-    labels = [("M1 · snapshot (interim)", "snapshot"),
-              ("M2 · incentive end", "end"),
-              ("+30 days (post-incentive)", "plus30d")]
+    labels = CHECKPOINT_LABELS
     rows = []
     for label, col in labels:
         if col not in wide.columns:
@@ -54,9 +60,7 @@ def write_global_checkpoint_chart(tvl: dict, out_dir: Path) -> Path:
     shape (Checkpoint, ΔTVL (USD)) so downstream Datawrapper usage doesn't
     care which scope produced it. `tvl` is global_scope.tvl_at_checkpoints().
     """
-    labels = [("M1 · snapshot (interim)", "snapshot"),
-              ("M2 · incentive end", "end"),
-              ("+30 days (post-incentive)", "plus30d")]
+    labels = CHECKPOINT_LABELS
     tvl_start = tvl.get("start")
     rows = []
     for label, col in labels:

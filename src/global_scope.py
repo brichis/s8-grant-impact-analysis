@@ -73,6 +73,8 @@ class GlobalScopeResult:
     target_total: float | None
     milestone1_met: bool | None
     total_target_met: bool | None
+    peak_delta_tvl_usd: float | None
+    peak_date: str | None
     op_budget: float | None
     usd_per_op: float | None
     tvl_at_snapshot_usd: float | None
@@ -83,7 +85,11 @@ class GlobalScopeResult:
         return asdict(self)
 
 
-def compute(config, tvl: dict) -> GlobalScopeResult:
+def compute(config, tvl: dict, daily=None) -> GlobalScopeResult:
+    """`daily`: [(date, delta_tvl_usd), ...] inside the window, from
+    scripts/global_peak.py — the series both milestones are judged on, exactly
+    as metrics.compute does for Targeted Scope. Without it the verdicts are
+    None (not evaluated), never False."""
     if "start" not in tvl or "end" not in tvl:
         raise SystemExit(
             f"{config.grant_id}: DefiLlama has no chainTvls[...].tvl data at "
@@ -100,11 +106,16 @@ def compute(config, tvl: dict) -> GlobalScopeResult:
     tvl_stick = tvl.get("plus30d")
     retention = (tvl_stick / tvl_end * 100.0) if (tvl_stick is not None and tvl_end) else None
 
-    # M1 is judged at the snapshot and M2 at the end -- same rule as
-    # metrics.compute; see the comment there.
-    m1_met = (None if delta_snap is None or not config.target_milestone1
-              else delta_snap >= config.target_milestone1)
-    total_met = (delta >= config.target_total) if config.target_total else None
+    # Same rule as metrics.compute: a target counts as reached if the daily
+    # series reached it on any day of the window. The snapshot is data only.
+    peak_value = peak_date = None
+    if daily:
+        peak_date, peak_value = max(daily, key=lambda dv: dv[1])
+        peak_date = str(peak_date)
+    m1_met = (None if peak_value is None or not config.target_milestone1
+              else peak_value >= config.target_milestone1)
+    total_met = (None if peak_value is None or not config.target_total
+                 else peak_value >= config.target_total)
     usd_per_op = (delta / config.budget_op) if config.budget_op else None
 
     return GlobalScopeResult(
@@ -115,6 +126,8 @@ def compute(config, tvl: dict) -> GlobalScopeResult:
         delta_tvl_usd=round(delta, 2),
         target_milestone1=config.target_milestone1, target_total=config.target_total,
         milestone1_met=m1_met, total_target_met=total_met,
+        peak_delta_tvl_usd=round(peak_value, 2) if peak_value is not None else None,
+        peak_date=peak_date,
         op_budget=config.budget_op,
         usd_per_op=round(usd_per_op, 2) if usd_per_op is not None else None,
         tvl_at_snapshot_usd=round(tvl_snap, 2) if tvl_snap is not None else None,

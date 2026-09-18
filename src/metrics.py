@@ -25,8 +25,8 @@ Supplementary context (not S8 success metrics, labelled as such in outputs):
     the snapshot and end figures stay in the outputs as data. To keep this
     honest against one-day spikes, the series it reads is a validated daily
     series, not a single read.
-  * Historic rule (kept for reference): M1 was tested against the snapshot, M2 (target_total)
-    against the end checkpoint.
+  * The snapshot ΔTVL (start->snapshot at snapshot prices) is kept as data —
+    a marker on the checkpoint chart — and decides nothing.
   * Price-vs-quantity wedge — the share of the USD change that is token-price
     movement, which the fixed-end-price formula deliberately excludes.
 """
@@ -84,7 +84,6 @@ def _pivot_quantities(measured):
     """One row per (contract, token) — a plain `contract` group-by would silently
     collapse a two-sided pool's two legs (same contract address, different
     token) into a single row via aggfunc='last'."""
-    import pandas as pd
     measured = measured.copy()
     measured["_key"] = measured["contract"] + "|" + measured["token"].astype(str)
     meta = (measured[["_key", "contract", "pool", "token", "type", "chain"]]
@@ -122,15 +121,9 @@ def compute(config, measured, prices, daily=None) -> GrantResult:
             quantity_start=round(q_start, 2), quantity_end=round(q_end, 2),
             price_end=round(price_end, 6), delta_tvl_usd=round(dtvl, 2)))
 
-    # M1 is evaluated at the snapshot, M2 at the end, matching how the two
-    # checkpoints are labelled in outputs.py. Each milestone is measured over
-    # its own window, so the S8 formula's fixed price is the price at the end
-    # of *that* window: start->snapshot valued at snapshot prices, start->end
-    # at end prices. Testing M1 against the end figure (as this did) asks
-    # whether a milestone due months earlier is still met today, which for a
-    # grant whose TVL has since receded reports "not met" for a milestone that
-    # was in fact reached -- Velodrome cleared $3.2M at its snapshot and then
-    # gave it back.
+    # ΔTVL at the snapshot, valued at snapshot prices (its own window's end
+    # price, as the S8 formula). Data only: it appears in the scorecard and as
+    # a marker on the checkpoint chart, and decides no verdict.
     at_snapshot = None
     if "snapshot" in set(measured["checkpoint"]):
         at_snapshot = 0.0
@@ -142,8 +135,6 @@ def compute(config, measured, prices, daily=None) -> GrantResult:
             q_snap = float(row.get("snapshot", 0.0) or 0.0)
             at_snapshot += (q_snap - q_start) * price_snap
 
-    # None, not False, when the snapshot wasn't measured: unevaluated is not
-    # the same as missed.
     # Milestones are judged on the peak of the daily series: the question is
     # whether the grant ever reached the target inside its incentive window,
     # not whether it happened to be above it on one particular date.
