@@ -472,7 +472,7 @@ TEMPLATE = """<!doctype html>
 <footer>
   <div class="stars">
     <svg width="14" height="14" viewBox="0 0 100 100" aria-hidden="true"><path d="{mark}" fill="{c[coral]}" fill-rule="evenodd"/></svg>
-    <span class="label">Brichis · Governance → Compliance</span>
+    <span class="label">© 2026 Bricia Guzmán · Compliance &amp; Verification</span>
   </div>
   <p class="small" style="margin-top:8px">Optimism Season 8 growth grants · measured {generated} ·
   interim programs frozen at {cutoff}.</p>
