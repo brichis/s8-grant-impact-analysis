@@ -36,7 +36,7 @@ DECIMALS_SELECTOR = "0x313ce567"
 
 
 def fail(msg):
-    print(f"FALLA: {msg}\nNo se escribio nada.")
+    print(f"FAILED: {msg}\nNothing was written.")
     sys.exit(1)
 
 
@@ -116,28 +116,28 @@ def main():
         dates[r["checkpoint"]] = r["date"]
     events = load_events(a.events_csv)
     if set(events) != set(legs):
-        fail(f"el export no cubre exactamente los pools Infinity: faltan {sorted(set(legs) - set(events))}, "
-             f"sobran {sorted(set(events) - set(legs))}")
+        fail(f"the export doesn't cover exactly the Infinity pools: missing {sorted(set(legs) - set(events))}, "
+             f"unexpected {sorted(set(events) - set(legs))}")
 
     start = dt.date.fromisoformat(dates["start"])
     last = max(dt.date.fromisoformat(d) for d in dates.values())
     days = [start + dt.timedelta(i) for i in range((last - start).days + 1)]
 
     rows, bad, checks = [], 0, 0
-    print("Reservas reconstruidas vs cantidades comiteadas (la prueba del punto ciego):")
+    print("Rebuilt reserves vs the committed quantities (the blind-spot test):")
     for pool, ev in sorted(events.items()):
         init = next((e for e in ev if e["event"] == "init"), None)
         if init is None:
-            fail(f"{pool[:12]}… sin evento Initialize en el export")
+            fail(f"{pool[:12]}… has no Initialize event in the export")
         cur = {init["currency0"]: 0, init["currency1"]: 1}
         by_addr = {next(iter(l["addr"])): sym for sym, l in legs[pool].items() if l["addr"]}
         if set(by_addr) != set(cur):
-            fail(f"{pool[:12]}… monedas del Initialize {sorted(cur)} != legs comiteados {sorted(by_addr)}")
+            fail(f"{pool[:12]}… Initialize currencies {sorted(cur)} != committed legs {sorted(by_addr)}")
         dec = {}
         for addr in cur:
             dec[addr] = cached_decimals(addr)
             if dec[addr] is None:
-                fail(f"sin decimales en el cache del pipeline para {addr}")
+                fail(f"no decimals in the pipeline cache for {addr}")
         series = replay(ev, days)
         n_mod = sum(e["event"] == "modify" for e in ev)
         print(f"  {pool[:14]}…  {n_mod} ModifyLiquidity · init {init['day']}")
@@ -149,8 +149,8 @@ def main():
                 got = qty[dt.date.fromisoformat(dates[cp])]
                 ok = abs(got - want) <= REL_TOL * max(1.0, abs(want))
                 bad += not ok
-                print(f"    {'ok ' if ok else 'DIF'} {sym:<6} {cp:<8} comiteado {want:>16,.6f}  eventos {got:>16,.6f}"
-                      + ("" if ok else f"  (eventos {'-' if got < want else '+'}{abs(got - want):,.6f})"))
+                print(f"    {'ok ' if ok else 'DIFF'} {sym:<6} {cp:<8} committed {want:>16,.6f}  events {got:>16,.6f}"
+                      + ("" if ok else f"  (events {'-' if got < want else '+'}{abs(got - want):,.6f})"))
             prev = None
             for d in days:
                 raw = 0 if series[d] is None else series[d][pos]
@@ -158,15 +158,16 @@ def main():
                     rows.append([pool, addr, sym, dec[addr], d.isoformat(), str(raw - prev),
                                  0 if series[d] is None else series[d][3]])
                 prev = raw
-    print(f"Coinciden {checks - bad}/{checks}")
+    print(f"{checks - bad}/{checks} match")
     if bad:
-        fail(f"{bad} checkpoint(s) difieren: si los eventos dan MAS que lo comiteado, el escaneo local del "
-             f"pipeline perdio posiciones y la cifra oficial infracuenta — hay que decidir antes de seguir")
+        fail(f"{bad} checkpoint(s) differ: if the events give MORE than the committed figure, the "
+             f"pipeline's local scan missed positions and the published number undercounts — "
+             f"that is a decision to take before going on")
     out = Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="") as f:
         w = csv.writer(f); w.writerow(["pool", "token", "symbol", "decimals", "local_date", "net_raw", "transfers"])
         w.writerows(rows)
-    print(f"Escrito {out} ({len(rows)} filas de flujo diario derivado)")
+    print(f"Wrote {out} ({len(rows)} rows of derived daily flow)")
 
 
 if __name__ == "__main__":

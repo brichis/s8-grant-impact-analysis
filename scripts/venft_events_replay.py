@@ -37,7 +37,7 @@ DUNE_TO_LABEL = {"optimism": "OP Mainnet", "base": "Base"}
 
 
 def fail(msg):
-    print(f"FALLA: {msg}\nNo se escribio nada.")
+    print(f"FAILED: {msg}\nNothing was written.")
     sys.exit(1)
 
 
@@ -90,26 +90,26 @@ def main():
     for r in csv.DictReader(open(a.events_csv)):
         chain = DUNE_TO_LABEL.get(r["blockchain"])
         if chain not in loans:
-            fail(f"cadena del export sin contrato de prestamo comiteado: {r['blockchain']}")
+            fail(f"the export has a chain with no committed loan contract: {r['blockchain']}")
         amt = (r.get("amount") or "").strip()
         by_chain[chain].append({"block": int(r["block_number"]), "idx": int(r["log_index"]),
                                 "day": dt.date.fromisoformat(r["local_date"][:10]), "kind": r["kind"],
                                 "token": int(r["token_id"]), "amount": int(amt) if amt else None})
     if set(by_chain) != set(loans):
-        fail(f"el export no cubre los prestamos comiteados: faltan {sorted(set(loans) - set(by_chain))}")
+        fail(f"the export doesn't cover the committed loan contracts: missing {sorted(set(loans) - set(by_chain))}")
 
     start = dt.date.fromisoformat(dates["start"])
     last = max(dt.date.fromisoformat(d) for d in dates.values())
     days = [start + dt.timedelta(i) for i in range((last - start).days + 1)]
 
     ok_logic = {"chrono": 0, "pipeline": 0}; checks = 0; series = {}
-    print("Colateral reconstruido vs comiteado (cantidad y numero de NFT):")
+    print("Rebuilt collateral vs the committed figures (amount and NFT count):")
     for chain, L in sorted(loans.items()):
         ev = sorted(by_chain[chain], key=lambda e: (e["block"], e["idx"]))
         s = replay(ev, days)
         series[chain] = s
         kinds = collections.Counter(e["kind"] for e in ev)
-        print(f"  {chain} {L['label']} ({L['contract'][:10]}…) · eventos {dict(kinds)}")
+        print(f"  {chain} {L['label']} ({L['contract'][:10]}…) · events {dict(kinds)}")
         for cp in ("start", "snapshot", "end", "plus30d"):
             if cp not in L["q"]:
                 continue
@@ -119,14 +119,14 @@ def main():
                 raw, n = s[d][logic]
                 good = abs(raw / 1e18 - L["q"][cp]) <= REL_TOL * max(1.0, L["q"][cp]) and n == L["nfts"][cp]
                 ok_logic[logic] += good
-                print(f"    {'ok ' if good else 'DIF'} {cp:<8} {logic:<8} comiteado {L['q'][cp]:>18,.6f} ({L['nfts'][cp]} NFT)"
-                      f"  eventos {raw / 1e18:>18,.6f} ({n} NFT)")
-    print(f"Coinciden: cronologico {ok_logic['chrono']}/{checks} · logica del pipeline {ok_logic['pipeline']}/{checks}")
+                print(f"    {'ok ' if good else 'DIFF'} {cp:<8} {logic:<8} committed {L['q'][cp]:>18,.6f} ({L['nfts'][cp]} NFT)"
+                      f"  events {raw / 1e18:>18,.6f} ({n} NFT)")
+    print(f"Matches: chronological {ok_logic['chrono']}/{checks} · pipeline logic {ok_logic['pipeline']}/{checks}")
     if ok_logic["chrono"] != checks:
         if ok_logic["pipeline"] == checks:
-            fail("solo cuadra la logica del pipeline: la cifra comiteada omite NFT que salieron y volvieron "
-                 "a entrar al prestamo — decidir antes de seguir")
-        fail("la reconstruccion no reproduce los checkpoints comiteados")
+            fail("only the pipeline's logic reconciles: the committed figure leaves out veNFTs that left "
+                 "the loan contract and came back — a decision to take before going on")
+        fail("the rebuild does not reproduce the committed checkpoints")
 
     out = Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="") as f:
@@ -135,7 +135,7 @@ def main():
             for d in days:
                 raw, n = series[chain][d]["chrono"]
                 w.writerow([chain, L["contract"], L["label"], L["token"], d.isoformat(), repr(raw / 1e18), n])
-    print(f"Escrito {out}")
+    print(f"Wrote {out}")
 
 
 if __name__ == "__main__":

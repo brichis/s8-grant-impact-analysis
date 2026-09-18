@@ -48,7 +48,7 @@ SUPPORTED = ("vault", "lend")    # pools go through dune_peak.py; loans are the 
 
 
 def fail(msg):
-    print(f"FALLA: {msg}\nNo se escribio nada.")
+    print(f"FAILED: {msg}\nNothing was written.")
     sys.exit(1)
 
 
@@ -84,7 +84,7 @@ def main():
     live = {(c["chain"], c["address"].lower()) for c in cfg.scope_contracts}
     done = {(k[0], k[1]) for k in qty}
     if live != done:
-        fail(f"el scope del registro ya no coincide con el output comiteado: "
+        fail(f"the registry scope no longer matches the committed output: "
              f"solo registro {sorted(live - done)} · solo output {sorted(done - live)}")
     extra = collections.defaultdict(dict)
     for path in a.extra_daily:
@@ -92,7 +92,7 @@ def main():
             extra[(r["chain"], r["contract"].lower(), r["token"].upper())][r["date"]] = float(r["quantity"])
     extra_contracts = {(k[0], k[1]) for k in extra}
     if extra_contracts - done:
-        fail(f"--extra-daily trae contratos que no estan en el output comiteado: {sorted(extra_contracts - done)}")
+        fail(f"--extra-daily has contracts that are not in the committed output: {sorted(extra_contracts - done)}")
     to_read = [c for c in cfg.scope_contracts if (c["chain"], c["address"].lower()) not in extra_contracts]
     # Uniswap v4 pools are read with a StateView tick walk — a few hundred calls
     # per pool-day at wide tick spacings (Super DCA: spacing 60, 2-9 ticks) —
@@ -103,20 +103,20 @@ def main():
     cheap_pool = lambda c: is_v4(c) or (a.allow_pools and c["type"] == "pool")
     bad = sorted({c["type"] for c in to_read if not cheap_pool(c)} - set(SUPPORTED))
     if bad:
-        fail(f"tipos {bad} no soportados aqui (pools v2/v3: dune_peak.py; Infinity: "
-             f"infinity_events_replay.py; loans: --extra-daily desde eventos)")
+        fail(f"types {bad} are not supported here (v2/v3 pools: dune_peak.py; Infinity: "
+             f"infinity_events_replay.py; loans: --extra-daily from events)")
     cfg = dataclasses.replace(cfg, scope_contracts=to_read)
 
     start, end = dt.date.fromisoformat(dates["start"]), dt.date.fromisoformat(dates["end"])
     last = max(dt.date.fromisoformat(d) for d in dates.values())
     days = [start + dt.timedelta(i) for i in range((last - start).days + 1)]
-    print(f"{cfg.grantee}: {len(cfg.scope_contracts)} contrato(s), {len(days)} dias ({start} -> {last})", flush=True)
+    print(f"{cfg.grantee}: {len(cfg.scope_contracts)} contract(s), {len(days)} days ({start} -> {last})", flush=True)
 
     if a.probe:
         mid = len(days) // 2
         sample = days[mid:mid + a.probe]
         t = time.monotonic(); measure_days(cfg, sample); secs = (time.monotonic() - t) / len(sample)
-        print(f"PRUEBA: {len(sample)} dias ({sample[0]} .. {sample[-1]}) a {secs:.1f} s/dia "
+        print(f"PROBE: {len(sample)} days ({sample[0]} .. {sample[-1]}) at {secs:.1f} s/day "
               f"-> ventana completa ~{secs * len(days) / 60:.0f} min en frio")
         return
 
@@ -132,7 +132,7 @@ def main():
     for k, series in extra.items():
         daily[k].update(series)
     if set(daily) != set(qty):
-        fail(f"los legs medidos no coinciden con los comiteados: {sorted(set(daily) ^ set(qty))}")
+        fail(f"the measured legs don't match the committed ones: {sorted(set(daily) ^ set(qty))}")
 
     checks = bad_n = 0
     for k in sorted(qty):
@@ -141,16 +141,16 @@ def main():
             got = daily[k].get(dates[cp])
             if got is None or abs(got - want) > REL_TOL * max(1.0, abs(want)):
                 bad_n += 1
-                print(f"  DISTINTO {label[k]:<24} {k[2]:<8} {cp:<8} comiteado {want:,.6f}  diario {got}")
-    print(f"Validacion contra checkpoints comiteados: {checks - bad_n}/{checks} coinciden")
+                print(f"  DIFF {label[k]:<24} {k[2]:<8} {cp:<8} committed {want:,.6f}  daily {got}")
+    print(f"Checked against the committed checkpoints: {checks - bad_n}/{checks} match")
     if bad_n:
-        fail(f"{bad_n} checkpoint(s) no cuadran")
+        fail(f"{bad_n} checkpoint(s) don't reconcile")
 
     curve = [(d, sum((daily[k][d.isoformat()] - qty[k]["start"]) * price[k] for k in qty)) for d in days]
     at_end = dict(curve)[end]
     slack = 5e-7 * sum(abs(qty[k]["end"] - qty[k]["start"]) for k in qty) + 0.01
     if abs(at_end - official) > slack:
-        fail(f"la curva al cierre da ${at_end:,.2f} y el scorecard ${official:,.2f} (margen ${slack:,.2f})")
+        fail(f"the curve ends at ${at_end:,.2f} and the scorecard says ${official:,.2f} (allowance ${slack:,.2f})")
     peak_d, peak_v = max(((d, v) for d, v in curve if d <= end), key=lambda dv: dv[1])
 
     src = REPO / "data" / "rpc_daily" / f"{g.name}_daily_quantities.csv"
@@ -173,9 +173,9 @@ def main():
             f"; {', '.join(unpriced)} unpriced on DefiLlama, counted at $0 as in the official figure" if unpriced else "")
         w.writerow([round(peak_v, 2), peak_d.isoformat(), round(at_end, 2), coverage,
                     "daily on-chain reads with the pipeline's own measure.py", a.note])
-    print(f"Cierre: curva ${at_end:,.2f} vs scorecard ${official:,.2f} (margen ${slack:,.2f})")
-    print(f"Pico en ventana: ${peak_v:,.0f} el {peak_d}  ·  al cierre ${at_end:,.0f}")
-    print(f"Escrito: {src.relative_to(REPO)}, {out}/supplementary_peak.csv y supplementary_daily_curve.csv")
+    print(f"End of window: curve ${at_end:,.2f} vs scorecard ${official:,.2f} (allowance ${slack:,.2f})")
+    print(f"Peak in window: ${peak_v:,.0f} on {peak_d}  ·  ${at_end:,.0f} at the end")
+    print(f"Wrote: {src.relative_to(REPO)}, {out}/supplementary_peak.csv and supplementary_daily_curve.csv")
 
 
 if __name__ == "__main__":

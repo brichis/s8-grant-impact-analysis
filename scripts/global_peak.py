@@ -25,7 +25,7 @@ import global_scope  # noqa: E402
 
 
 def fail(msg):
-    print(f"FALLA: {msg}\nNo se escribio nada.")
+    print(f"FAILED: {msg}\nNothing was written.")
     sys.exit(1)
 
 
@@ -48,7 +48,7 @@ def main():
     base = total(start_s)
     if round(total(end_s) - base, 2) != round(official, 2):
         fail(f"el payload da ΔTVL ${total(end_s) - base:,.2f} y el scorecard ${official:,.2f} — "
-             f"no es el mismo dato, no calculo pico sobre el")
+             f"is not the same figure, so no peak is computed from it")
 
     start, end = dt.date.fromisoformat(start_s), dt.date.fromisoformat(end_s)
     tail = end + dt.timedelta(days=30)             # drawn for context, never part of the peak
@@ -68,8 +68,8 @@ def main():
                     f"Global Scope: protocol-wide TVL on {', '.join(chains)}",
                     f"DefiLlama chainTvls daily series ({Path(a.payload).name})", a.note])
     print(f"Comprobacion: el payload reproduce el ΔTVL del scorecard (${official:,.2f})")
-    print(f"Pico en ventana: ${peak_v:,.0f} el {peak_d}  ·  al cierre ${official:,.0f}  ·  {len(curve)} dias (+30d incluidos para contexto)")
-    print(f"Escrito en {out}/: supplementary_peak.csv, supplementary_daily_curve.csv")
+    print(f"Peak in window: ${peak_v:,.0f} on {peak_d}  ·  ${official:,.0f} at the end  ·  {len(curve)} days (+30d kept for context)")
+    print(f"Wrote {out}/: supplementary_peak.csv, supplementary_daily_curve.csv")
 
 
 if __name__ == "__main__":

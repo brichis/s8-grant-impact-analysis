@@ -31,7 +31,7 @@ DUNE_TO_CHAIN = {"optimism": "OP Mainnet", "base": "Base", "unichain": "Unichain
 
 
 def fail(msg: str) -> None:
-    print(f"FALLA: {msg}\nNo se escribio nada.")
+    print(f"FAILED: {msg}\nNothing was written.")
     sys.exit(1)
 
 
@@ -56,7 +56,7 @@ def main() -> None:
         chain = DUNE_TO_CHAIN.get(row.get("blockchain", "optimism"))
         key = (chain, row["pool"].lower(), (row["symbol"] or "").upper())
         if key not in committed:
-            fail(f"el export trae un leg que el pipeline no mide: {key}")
+            fail(f"the export has a leg the pipeline doesn't measure: {key}")
         dec = int(row["decimals"])
         decimals[key] = dec
         seen.add(key)
@@ -68,7 +68,7 @@ def main() -> None:
     days = [start + dt.timedelta(i) for i in range((last - start).days + 1)]
 
     series, checks, bad = {}, 0, 0
-    print("Cantidades reconstruidas vs comiteadas:")
+    print("Rebuilt quantities vs the committed ones:")
     for key in sorted(seen):
         qty = committed[key].get("start", 0.0)
         series[key] = {}
@@ -84,10 +84,10 @@ def main() -> None:
             ok = abs(got - want) <= REL_TOL * max(1.0, abs(want))
             bad += not ok
             if not ok:
-                print(f"  DIF {label[key]} [{key[2]}] {checkpoint}: comiteado {want:,.6f} · export {got:,.6f}")
-    print(f"  {checks - bad}/{checks} coinciden")
+                print(f"  DIFF {label[key]} [{key[2]}] {checkpoint}: committed {want:,.6f} · export {got:,.6f}")
+    print(f"  {checks - bad}/{checks} match")
     if bad:
-        fail(f"{bad} checkpoint(s) no cuadran con las lecturas on-chain")
+        fail(f"{bad} checkpoint(s) don't reconcile with the on-chain readings")
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -98,7 +98,7 @@ def main() -> None:
             for day in days:
                 writer.writerow([key[0], key[1], label[key], key[2], day.isoformat(),
                                  repr(series[key][day])])
-    print(f"Escrito {out} ({len(seen)} legs x {len(days)} dias)")
+    print(f"Wrote {out} ({len(seen)} legs x {len(days)} days)")
 
 
 if __name__ == "__main__":

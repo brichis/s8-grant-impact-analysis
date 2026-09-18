@@ -61,7 +61,7 @@ DUNE_CHAIN = {"Base": "base", "OP Mainnet": "optimism", "Optimism": "optimism",
 
 
 def fail(msg):
-    print(f"FALLA: {msg}\nNo se escribio nada.")
+    print(f"FAILED: {msg}\nNothing was written.")
     sys.exit(1)
 
 
@@ -154,7 +154,7 @@ def main():
         if d is None:
             if p(k) == 0:
                 dropped.append(label[k]); continue       # unpriced: contributes $0 either way
-            fail(f"sin decimales para {label[k]} ({tok}) en Dune ni en el cache del pipeline")
+            fail(f"no decimals for {label[k]} ({tok}), neither in Dune nor in the pipeline cache")
         for day, v in series.items():
             flows[k][day] += v / 10 ** d
     covered = [k for k in covered if label[k] not in dropped]
@@ -171,8 +171,8 @@ def main():
             series[d] = run
         balance[k] = series
 
-    print(f"Legs: {len(covered)} validados" + (f" · {len(excluded)} excluidos ({', '.join(dropped_what)})" if excluded else "")
-          + (f" · {len(dropped)} sin precio ni decimales, omitidos: {dropped}" if dropped else ""))
+    print(f"Legs: {len(covered)} validated" + (f" · {len(excluded)} excluded ({', '.join(dropped_what)})" if excluded else "")
+          + (f" · {len(dropped)} skipped, with neither price nor decimals: {dropped}" if dropped else ""))
     bad, checks = 0, 0
     for k in sorted(covered, key=lambda k: (k[0],) + label[k]):
         for cp in ("snapshot", "end", "plus30d"):
@@ -182,10 +182,10 @@ def main():
             want, got = qty[k][cp], balance[k][dt.date.fromisoformat(dates[cp])]
             if abs(got - want) > REL_TOL * max(1.0, abs(want)):
                 bad += 1
-                print(f"  DISTINTO {k[0]:<10} {label[k][0]:<18} {label[k][1]:<9} {cp:<8} pipeline {want:,.6f}  dune {got:,.6f}")
-    print(f"Validacion contra checkpoints on-chain: {checks - bad}/{checks} coinciden")
+                print(f"  DIFF {k[0]:<10} {label[k][0]:<18} {label[k][1]:<9} {cp:<8} pipeline {want:,.6f}  dune {got:,.6f}")
+    print(f"Checked against the on-chain checkpoints: {checks - bad}/{checks} match")
     if bad:
-        fail(f"{bad} checkpoint(s) no cuadran — el pico no seria fiable")
+        fail(f"{bad} checkpoint(s) don't reconcile — the peak would not be trustworthy")
 
     excl_delta = sum(float(r["delta_tvl_usd"]) for r in table
                      if r["chain"] in a.exclude_chain or r["type"] in a.exclude_type)
@@ -200,10 +200,10 @@ def main():
     slack = 5e-7 * sum(abs(qty[k]["end"] - qty[k]["start"]) for k in covered) + 0.01 * (len(excluded) + 1)
     target = official - excl_delta
     if abs(at_end - target) > slack:
-        fail(f"la curva al cierre da ${at_end:,.2f}; el scorecard menos lo excluido da ${target:,.2f} "
-             f"(diferencia ${abs(at_end - target):,.2f} > margen de redondeo ${slack:,.2f})")
-    print(f"Cierre: curva ${at_end:,.2f} vs scorecard{' menos excluidos' if excluded else ''} ${target:,.2f} "
-          f"(diferencia ${abs(at_end - target):,.2f}, margen de redondeo ${slack:,.2f})")
+        fail(f"the curve ends at ${at_end:,.2f}; the scorecard minus what is excluded gives ${target:,.2f} "
+             f"(off by ${abs(at_end - target):,.2f} > the rounding allowance of ${slack:,.2f})")
+    print(f"End of window: curve ${at_end:,.2f} vs scorecard{' minus exclusions' if excluded else ''} ${target:,.2f} "
+          f"(off by ${abs(at_end - target):,.2f}, rounding allowance ${slack:,.2f})")
     peak_d, peak_v = max(((d, v) for d, v in curve if d <= end), key=lambda dv: dv[1])
 
     if excluded:
@@ -229,8 +229,8 @@ def main():
         w.writerow(["peak_delta_tvl_usd", "peak_date", "delta_tvl_at_end_usd", "coverage", "source", "note"])
         w.writerow([round(peak_v, 2), peak_d.isoformat(), round(at_end, 2), coverage,
                     "Dune tokens.transfers, anchored on the pipeline's on-chain start reading", a.note])
-    print(f"Pico en ventana: ${peak_v:,.0f} el {peak_d}  ·  al cierre ${at_end:,.0f}  ·  cobertura: {coverage}")
-    print(f"Escrito en {out}/: supplementary_peak.csv, supplementary_daily_curve.csv")
+    print(f"Peak in window: ${peak_v:,.0f} on {peak_d}  ·  ${at_end:,.0f} at the end  ·  coverage: {coverage}")
+    print(f"Wrote {out}/: supplementary_peak.csv, supplementary_daily_curve.csv")
 
 
 if __name__ == "__main__":

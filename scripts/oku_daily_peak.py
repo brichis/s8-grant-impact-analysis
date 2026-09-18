@@ -25,7 +25,7 @@ REL_TOL = 1e-9
 
 
 def fail(msg):
-    print(f"FALLA: {msg}\nNo se escribio nada.")
+    print(f"FAILED: {msg}\nNothing was written.")
     sys.exit(1)
 
 
@@ -53,8 +53,8 @@ def main():
     vault, chain = oku._cohort_vault()
     wallets = sorted({x.strip().lower() for x in oku._fetch_oku_wallets()["wallet_address"].dropna()})
     if set(wallets) != set(committed):
-        fail(f"la cohorte del registro ya no coincide con la comiteada: "
-             f"{len(set(wallets) ^ set(committed))} wallets distintas")
+        fail(f"the registry cohort no longer matches the committed one: "
+             f"{len(set(wallets) ^ set(committed))} wallets differ")
 
     rpc = oku.ArchiveRPC(oku.rpc_slug(chain), oku.RPC_CACHE)
     head_day = dt.date.today() - dt.timedelta(days=1)
@@ -63,7 +63,7 @@ def main():
     b_end = rpc.block_at(oku._end_of_day_ts(end))
     asset = "0x" + rpc.read(vault, oku.ASSET, b_end)[-40:]
     decimals = int(rpc.read(asset, oku.DECIMALS, b_end), 16)
-    print(f"Oku: {len(wallets)} wallets · vault {vault} ({chain}) · {len(days)} dias ({start} -> {last}; fin {end})", flush=True)
+    print(f"Oku: {len(wallets)} wallets · vault {vault} ({chain}) · {len(days)} days ({start} -> {last}; end {end})", flush=True)
 
     if a.probe:
         sample = days[len(days) // 2: len(days) // 2 + a.probe]
@@ -72,7 +72,7 @@ def main():
             positions(rpc, vault, wallets, rpc.block_at(oku._end_of_day_ts(d)), decimals)
         rpc.flush()
         secs = (time.monotonic() - t) / len(sample)
-        print(f"PRUEBA: {secs:.1f} s/dia -> ~{secs * len(days) / 60:.0f} min")
+        print(f"PROBE: {secs:.1f} s/day -> ~{secs * len(days) / 60:.0f} min")
         return
 
     daily, t = {}, time.monotonic()
@@ -80,7 +80,7 @@ def main():
         daily[d] = positions(rpc, vault, wallets, rpc.block_at(oku._end_of_day_ts(d)), decimals)
         if i % 20 == 0 or i == len(days):
             rpc.flush()
-            print(f"  {i}/{len(days)} dias · {time.monotonic() - t:.0f} s", flush=True)
+            print(f"  {i}/{len(days)} days · {time.monotonic() - t:.0f} s", flush=True)
 
     bad = 0
     for wlt in wallets:
@@ -88,11 +88,11 @@ def main():
             got = daily[day][wlt]
             if abs(got - want) > REL_TOL * max(1.0, abs(want)):
                 bad += 1
-                print(f"  DISTINTO {wlt} {label}: comiteado {want:,.6f} diario {got:,.6f}")
+                print(f"  DIFF {wlt} {label}: committed {want:,.6f} daily {got:,.6f}")
     checks = 2 * len(wallets)
-    print(f"Validacion por wallet contra lo comiteado: {checks - bad}/{checks} coinciden")
+    print(f"Per-wallet check against the committed figures: {checks - bad}/{checks} match")
     if bad:
-        fail(f"{bad} posiciones no cuadran")
+        fail(f"{bad} positions don't reconcile")
 
     ts = oku._end_of_day_ts(end)
     coin = f"{oku.coins_slug(chain)}:{asset}"
@@ -121,9 +121,9 @@ def main():
                      f"{len(wallets)}-wallet cohort in {vault} ({chain})",
                      "daily balanceOf + convertToAssets per wallet, with oku_wallet_cohort.py's own helpers",
                      f"USDC price at end ${price:.6f} (DefiLlama coins API)"])
-    print(f"ΔTVL al cierre: ${at_end:,.2f} (Σdelta x precio)")
-    print(f"Pico en ventana: ${peak_v:,.0f} el {peak_d}  ·  al cierre ${at_end:,.0f}")
-    print(f"Escrito: {raw.relative_to(base)}, output/oku/supplementary_peak.csv y supplementary_daily_curve.csv")
+    print(f"ΔTVL at the end: ${at_end:,.2f} (Σdelta x price)")
+    print(f"Peak in window: ${peak_v:,.0f} on {peak_d}  ·  ${at_end:,.0f} at the end")
+    print(f"Wrote: {raw.relative_to(base)}, output/oku/supplementary_peak.csv and supplementary_daily_curve.csv")
 
 
 if __name__ == "__main__":
