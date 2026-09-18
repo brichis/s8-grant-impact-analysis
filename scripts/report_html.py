@@ -450,9 +450,11 @@ TEMPLATE = """<!doctype html>
       <li><strong>Karma API:</strong> each application's real submission and approval dates.</li>
       <li><strong>The registry is a spreadsheet:</strong> grants, windows and scope contracts live
       in Google Sheets and are read as CSV at run time, so a human can correct a date without
-      touching code.</li>
+      touching code — with Apps Script calling Blockscout inside the sheet to date each payment,
+      rather than copying transaction dates by hand.</li>
       <li><strong>Python</strong> (pandas, requests) for the pipeline, <strong>Plotly</strong> for
-      the charts on this page, and Blockscout and Etherscan for manual verification.</li>
+      the charts on this page, and Blockscout, Etherscan and Herd for reading unfamiliar contracts
+      on Base before trusting a selector or an event.</li>
       <li><strong>Every derived number is validated before it is used:</strong> each daily series
       has to reproduce every on-chain checkpoint, and the reconstructions cross-check against each
       other — the veNFT rebuild against DefiLlama, the v4 tick walk against Uniswap's own
