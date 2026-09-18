@@ -19,6 +19,13 @@ Method (S8 Impact Measurement Methodology):
   * Formula   : ΔTVL = Σ (quantity_end − quantity_start) × price_end
   * Window    : incentive start → incentive end (execution start; see registry.py)
   * Attribution: 100% — only the incentivized contracts are measured.
+  * Milestones: M1 and M2 count as met if the grant's validated daily ΔTVL
+                series (output/<grantee>/supplementary_daily_curve.csv, built
+                by the scripts/ *_peak.py tools) reached the target on any day
+                of the window. No series -> "not evaluated", never "not met".
+                The snapshot checkpoint is kept as data only.
+  * Interim   : still-running grants are measured to registry.INTERIM_CUTOFF
+                so the published figures stop moving between re-runs.
 
 Supplementary context (S7-derived, labelled non-S8): retention +30d, price-qty wedge.
 """
@@ -212,7 +219,7 @@ def run_global(config, checkpoints: dict, OUT_DIR: Path) -> None:
     print("[3/4] TVL from DefiLlama…")
     payload = pricing.fetch_protocol(config.defillama_slug, raw_dir=RAW_DIR)
     tvl = global_scope.tvl_at_checkpoints(config, payload, checkpoints)
-    result = global_scope.compute(config, tvl)
+    result = global_scope.compute(config, tvl, daily=_read_daily_curve(OUT_DIR))
 
     print(f"\n  S8 ΔTVL (Global, protocol-wide): ${result.delta_tvl_usd:,.0f}")
     print(f"    chains: {', '.join(result.chains)}")

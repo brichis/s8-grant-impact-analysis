@@ -248,12 +248,6 @@ def _liquidity(rpc: ArchiveRPC, manager: str, pool_id: str, block: int) -> int:
     return int(raw, 16)
 
 
-def _tick_liquidity_net(rpc: ArchiveRPC, manager: str, pool_id: str, tick: int, block: int) -> int:
-    raw = rpc.read(manager, GET_POOL_TICK_INFO + pool_id[2:] + _pad_signed(tick), block)
-    w = _words(raw)
-    return _to_signed(int(w[1], 16), 256)  # see _slot0: ABI words are pre-sign-extended
-
-
 def _liquidity_net_batch(rpc: ArchiveRPC, manager: str, pool_id: str,
                          ticks: list[int], block: int) -> dict[int, int]:
     calls = [
