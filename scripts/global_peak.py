@@ -38,7 +38,7 @@ def main():
 
     sc = list(csv.DictReader(open(g / "scorecard.csv")))[0]
     if not sc.get("scope", "").startswith("Global"):
-        fail(f"{g} no es un grantee de Global Scope — usa dune_peak.py")
+        fail(f"{g} is not a Global Scope grantee — use dune_peak.py")
     start_s, end_s = [side.strip().split(" ")[0] for side in sc["window"].split("->")]
     chains = ast.literal_eval(sc["chains"])
     official = float(sc["delta_tvl_usd"])
