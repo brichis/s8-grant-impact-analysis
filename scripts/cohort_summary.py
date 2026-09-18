@@ -57,6 +57,41 @@ OUT = REPO / "output"
 OP_COIN = "optimism:0x4200000000000000000000000000000000000042"
 
 
+# Per-application dates from Karma, when scripts/karma_dates.py has fetched
+# them: creation, and the real approval date rather than a per-cycle proxy.
+KARMA_DATES = REPO / "data" / "karma_dates.json"
+
+
+# The registry has no approval date: `initial_delivery_date` is the day the
+# council's wallet sent the OP to the Hedgey claim contract, which is a
+# consequence of approval, not approval itself. The grants of each cycle were
+# approved together and announced in that cycle's report, so the report's
+# publication date is the closest dated marker we have. Sources:
+#   41 gov.optimism.io/t/cycle-41-grants-council-report/10281
+#   42 gov.optimism.io/t/cycle-42-grants-report/10308
+#   43 gov.optimism.io/t/cycle-43-grants-council-report/10363
+#   44 gov.optimism.io/t/cycle-44-grants-report/10410
+#   46 gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503
+CYCLE_APPROVED = {
+    "41": dt.date(2025, 9, 12), "42": dt.date(2025, 10, 2), "43": dt.date(2025, 10, 23),
+    "44": dt.date(2025, 11, 14), "46": dt.date(2025, 12, 19),
+}
+
+
+KARMA: dict = {}
+
+
+def karma_dates() -> dict:
+    """Per-application dates from Karma (scripts/karma_dates.py), if fetched.
+
+    Karma knows when each application was created and when it was approved,
+    which is what the timing figures want; the cycle-report dates below are
+    only a fallback for a grant Karma has no record of."""
+    if not KARMA_DATES.exists():
+        return {}
+    return json.loads(KARMA_DATES.read_text())
+
+
 def op_price(day: dt.date) -> float:
     ts = int(dt.datetime.combine(day, dt.time(23, 59, 59)).timestamp())
     resp = requests.get(COINS_API_URL.format(ts=ts, coins=OP_COIN), timeout=30)
@@ -164,8 +199,13 @@ def build(directory: Path, grantees: dict, windows: dict) -> dict:
         if abs(float(sc["peak_delta_tvl_usd"]) - peak) > 1:
             raise SystemExit(f"{slug}: scorecard peak {sc['peak_delta_tvl_usd']} != curve peak {peak:.2f}")
 
-    approved = registry._to_date(registry._cell(g, "initial_delivery_date"))
+    delivered = registry._to_date(registry._cell(g, "initial_delivery_date"))
     claimed = registry._to_date(registry._cell(g, "date_tx1"))
+    cycle = str(registry._cell(g, "cycle") or "").strip()
+    karma = (KARMA or {}).get(str(registry._cell(g, "grant_id") or "").strip(), {})
+    approved = (dt.date.fromisoformat(karma["approved_at"]) if karma.get("approved_at")
+                else CYCLE_APPROVED.get(cycle))
+    created = dt.date.fromisoformat(karma["created"]) if karma.get("created") else None
     snapshot = registry._to_date(registry._cell(w, "snapshot"))
     op_at_claim = op_price(claimed) if claimed else None
     op_at_end = op_price(end)
@@ -185,7 +225,15 @@ def build(directory: Path, grantees: dict, windows: dict) -> dict:
         "weeks": round(days / 7, 1),
         "approved": approved.isoformat() if approved else None,
         "claimed": claimed.isoformat() if claimed else None,
+        "cycle": cycle or None,
+        "created": created.isoformat() if created else None,
+        "approved": approved.isoformat() if approved else None,
+        "approval_source": "karma" if karma.get("approved_at") else ("cycle report" if approved else None),
+        "created_to_approval_days": (approved - created).days if (approved and created) else None,
+        "delivered_to_claim_contract": delivered.isoformat() if delivered else None,
         "approval_to_start_days": (start - approved).days if approved else None,
+        "approval_to_delivery_days": (delivered - approved).days if (approved and delivered) else None,
+        "delivery_to_start_days": (start - delivered).days if delivered else None,
         "claim_to_start_days": (start - claimed).days if claimed else None,
         "delta_tvl_usd": round(official_end, 2),
         "usd_per_op": round(official_end / budget, 2) if budget else None,
@@ -221,6 +269,9 @@ def cohort_stats(gs: list[dict]) -> dict:
     weeks = [g["weeks"] for g in gs]
     peak_pos = [g["peak_position"] for g in gs if g["peak_position"] is not None]
     lag = [g["approval_to_start_days"] for g in gs if g["approval_to_start_days"] is not None]
+    lag_del = [g["delivery_to_start_days"] for g in gs if g["delivery_to_start_days"] is not None]
+    lag_pay = [g["approval_to_delivery_days"] for g in gs if g["approval_to_delivery_days"] is not None]
+    lag_rev = [g["created_to_approval_days"] for g in gs if g["created_to_approval_days"] is not None]
     claim_lag = [g["claim_to_start_days"] for g in gs if g["claim_to_start_days"] is not None]
     given_back = [(g["weeks"], g["share_of_peak_given_back"]) for g in gs
                   if g["share_of_peak_given_back"] is not None]
@@ -261,6 +312,15 @@ def cohort_stats(gs: list[dict]) -> dict:
         "peak_day": {"median": statistics.median(g["peak_day"] for g in gs),
                      "median_position": round(statistics.median(peak_pos), 2),
                      "before_last_10pct": sum(1 for p in peak_pos if p < 0.9)},
+        "delivery_to_start_days": {"median": statistics.median(lag_del) if lag_del else None,
+                                   "mean": round(statistics.mean(lag_del), 1) if lag_del else None,
+                                   "n": len(lag_del)},
+        "created_to_approval_days": {"median": statistics.median(lag_rev) if lag_rev else None,
+                                     "mean": round(statistics.mean(lag_rev), 1) if lag_rev else None,
+                                     "n": len(lag_rev)},
+        "approval_to_delivery_days": {"median": statistics.median(lag_pay) if lag_pay else None,
+                                      "mean": round(statistics.mean(lag_pay), 1) if lag_pay else None,
+                                      "n": len(lag_pay)},
         "approval_to_start_days": {"median": statistics.median(lag) if lag else None,
                                    "mean": round(statistics.mean(lag), 1) if lag else None,
                                    "n": len(lag)},
@@ -304,6 +364,8 @@ CSV_COLUMNS = ["slug", "grantee", "grant_id", "scope", "ongoing", "op_budget", "
 
 
 def main() -> None:
+    global KARMA
+    KARMA = karma_dates()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", type=Path, default=REPO / "reports")
     a = ap.parse_args()
