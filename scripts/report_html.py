@@ -286,7 +286,8 @@ TEMPLATE = """<!doctype html>
     <span class="label">Figure 2 · The same nine curves, on one scale</span>
     <div id="c-curves" class="chart" style="height:430px"></div>
     <p class="cap small">Each program's ΔTVL as a share of its own peak, against how far it was
-    through its window. The shape repeats: climb, peak around the middle, drift down.</p>
+    through its window — hover a line to pick one out. The shape repeats: climb, peak around the
+    middle, drift down.</p>
   </div>
 </section>
 
@@ -315,12 +316,18 @@ TEMPLATE = """<!doctype html>
   Jan 27, 2026 — the best result in the cohort. <strong>Give three months from approval to launch,
   not twelve</strong>, with a deadline for the final report.</p>
 
-  <h3>3 · Aim for programs of 12 to 18 weeks</h3>
-  <p class="measure">Median length was 16.6 weeks, from 9 to 31. Seven of nine peaked before the
-  last tenth of their window, and longer programs did not hold up better — Hydrex, the shortest at
-  9 weeks, gave back the most. Ask for 12 to 18 weeks, with a check-in at the halfway mark: the
-  point where most of these programs peaked, and the last moment one can still be corrected,
-  extended or stopped.</p>
+  <h3>3 · The extra weeks bought decay, not liquidity</h3>
+  <p class="measure">Programs ran a median of 16.6 weeks, from 9 to 31 — but the peak landed at a
+  median of <strong>day 56, week eight</strong>, and it did not move later in the longer programs
+  (the correlation between a program's length and the day it peaked is −0.10, i.e. none). Eight of
+  the nine peaked inside twelve weeks. What the longer windows added was the decline after the
+  peak, not more liquidity.</p>
+  <p class="measure"><strong>So: set a fixed duration of about twelve weeks, with a review at week
+  eight</strong> — where the median program topped out — and extend only on evidence that liquidity
+  is still climbing. Nine programs cannot prove an optimal length, and the sample says nothing
+  about whether a shorter program would have reached the same peak. What it does say is that
+  running past the peak, with the incentive still paying out, is what these windows mostly
+  bought.</p>
 
   <h3>4 · Staged payments worked, and there is OP to recover right now</h3>
   <div class="fig">
@@ -367,10 +374,18 @@ TEMPLATE = """<!doctype html>
   addresses or pool IDs per chain and their type; incentive token and amount per period; and
   co-incentives in token units.</p>
 
-  <h3>7 · Denominate incentives and milestones in OP</h3>
-  <p class="measure">Budgets in OP, TVL milestones measured at fixed prices as the S8 formula
-  already does, and co-incentives committed and reported in token units rather than USD
-  equivalents — which would also make them verifiable, and countable in the next review.</p>
+  <h3>7 · Size the incentive in OP, and say how a USD milestone will be measured</h3>
+  <p class="measure"><strong>Denominate the incentive itself in OP, not in USD.</strong> A team that
+  promises "$X per week in rewards" and is paid in OP has to top up out of its own pocket when the
+  token falls — which is what happened here, Oku among them. The grant is a number of tokens; the
+  program should be written the same way.</p>
+  <p class="measure"><strong>A milestone can still be set in USD</strong> — that is often how a
+  target makes sense to everyone reading it. What has to come with it is <em>how it will be
+  measured</em>, because a dashboard figure will not do: DefiLlama values TVL at each day's prices,
+  so its number moves with the market, while a milestone needs quantities valued at one fixed date.
+  That calculation is a small piece of work with public tools — on-chain reads for quantities,
+  DefiLlama or a price API for the fixed-date prices — and it is the same calculation behind every
+  figure in this report. Agree on it when the grant is approved, not when it is being judged.</p>
 </section>
 
 <section id="curves">
@@ -395,10 +410,10 @@ TEMPLATE = """<!doctype html>
     <ul>
       <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized.</li>
       <li><strong>Scope.</strong> Targeted, contract by contract. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
-      <li><strong>Claims.</strong> Filtered on Blockscout from the council's payout wallet. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
+      <li><strong>Claims.</strong> Read on Blockscout from the Hedgey claim contract the council paid into. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
       <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first; the grantee claims it from there.</li>
-      <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time and there is no reliable way to verify what was actually deployed.</li>
-      <li><strong>Two corrections</strong> were made while validating: 40acres' loan collateral was undercounted, raising its ΔTVL from $6.14M to $6.76M, and Super DCA moved to Targeted Scope once its Uniswap v4 pools became readable. No verdict changed.</li>
+      <li><strong>Curve Lending's window opens before its markets existed.</strong> Its three LlamaLend vaults — every market that factory has on OP Mainnet — were deployed on 9–10 June 2026, while the recorded incentive start is 17 April, which is why its curve sits flat at zero until mid-June. The zero baseline is correct; the start date is worth confirming.</li>
+      <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time, and I did not find a way to verify how much was actually deployed. There may well be one — I did not pursue it.</li>
     </ul>
   </div>
   <div class="callout measure">
@@ -466,10 +481,10 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 
 // Figure 2 — normalized curves
 (function () {{
-  const hi = {{ '40acres.finance': T.coral, 'Velodrome Finance': T.orchid, 'Hydrex': T.mint }};
+  const REST = 'rgba(46,27,69,0.26)';
   const traces = D.curves.map((s) => ({{
     x: s.x, y: s.y, type: 'scatter', mode: 'lines', name: s.name,
-    line: {{ color: hi[s.name] || 'rgba(46,27,69,0.22)', width: hi[s.name] ? 2.4 : 1.4 }},
+    line: {{ color: REST, width: 1.5 }},
     hovertemplate: s.name + ' — %{{y:.0f}}% of its peak at %{{x:.0f}}% of the window<extra></extra>',
   }}));
   const layout = clone(BASE);
@@ -479,15 +494,23 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
   // and the small-multiples below show every curve in full.
   layout.yaxis = {{ ...layout.yaxis, title: {{ text: 'Share of own peak', font: FONT }},
     ticksuffix: '%', zeroline: true, zerolinewidth: 1.5, range: [-105, 108] }};
-  layout.annotations = D.curves.filter((s) => hi[s.name]).map((s) => ({{
-    x: 100, y: Math.max(-100, Math.min(104, s.y[s.y.length - 1])), text: s.name,
-    xanchor: 'left', xshift: 8, showarrow: false,
-    font: {{ family: FONT.family, size: 11, color: hi[s.name] }},
-  }}));
-  layout.annotations.push({{ xref: 'paper', yref: 'paper', x: 0, y: -0.2, xanchor: 'left',
-    text: 'Hydrex continues to −170%; see the nine curves below', showarrow: false,
-    font: {{ family: FONT.family, size: 10, color: T.muted }} }});
-  Plotly.newPlot('c-curves', traces, layout, CONF);
+  layout.annotations = [{{ xref: 'paper', yref: 'paper', x: 0, y: -0.2, xanchor: 'left',
+    text: 'Hover a line to pick it out · Hydrex continues to −170%; see the nine curves below',
+    showarrow: false, font: {{ family: FONT.family, size: 10, color: T.muted }} }}];
+  const gd = document.getElementById('c-curves');
+  Plotly.newPlot(gd, traces, layout, CONF).then(() => {{
+    // Nine lines can't each carry a colour and stay readable, so the set reads as one
+    // shape and the cursor picks out a single program at a time.
+    let lit = null;
+    const light = (i) => {{
+      if (i === lit) return;
+      if (lit !== null) Plotly.restyle(gd, {{ 'line.color': REST, 'line.width': 1.5 }}, [lit]);
+      lit = i;
+      if (i !== null) Plotly.restyle(gd, {{ 'line.color': T.coral, 'line.width': 2.6 }}, [i]);
+    }};
+    gd.on('plotly_hover', (e) => light(e.points[0].curveNumber));
+    gd.on('plotly_unhover', () => light(null));
+  }});
 }})();
 
 // Figure 3 — where the OP went
