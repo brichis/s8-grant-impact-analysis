@@ -554,14 +554,6 @@ TEMPLATE = """<!doctype html>
       <li><strong>Claims.</strong> Read on Blockscout from the <a href="https://optimism.blockscout.com/address/0x8A2725a6f04816A5274dDD9FEaDd3bd0C253C1A6">Hedgey ClaimCampaigns contract</a> the council paid into, and the <a href="https://optimism.blockscout.com/address/0xC0603610C7F923c93b18B48eF63F0d733CB8C89e">Safe</a> that administered the campaigns. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
       <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first, and the grantee claims it from there. The registry's delivery date is that first transfer, not the approval.</li>
       <li><strong>Approval dates record a status change, not always the decision.</strong> Application and approval dates come from Karma, which is per-application rather than per-cycle. But Karma stores the day someone moved the record, and that can trail the decision by weeks: 40acres is a cycle 41 grant, and the <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">Cycle 41 report</a> of 12 September already lists it as passed, yet Karma did not flip it until 2 October. Left uncorrected, the grant is approved two days after its OP had already reached the claim contract. This page uses the cycle 41 date for 40acres and Karma's own date for the rest. Curve Lending also shows a later Karma date than its cycle, but its cycle 42 entry is a conditional pass pending confirmation, so there the later date is the more likely one and it is kept. The four stage medians are the same under either choice; only 40acres' own split and the approved-to-claim range move.</li>
-      <li><strong>Curve Lending's window opens before half its scope existed.</strong> Three of its
-      six contracts are Curve pools. Those were live on day one and then stayed flat, so they add
-      almost nothing to a metric that counts change from the start. The other three are LlamaLend
-      vaults, every market that factory has on OP Mainnet, and they were deployed on 9–10 June
-      2026. The recorded incentive start is 17 April, eight weeks earlier. Between the two, the
-      curve sits near zero until mid-June rather than exactly at zero: the pools drift by a few
-      thousand dollars while the vaults still read nothing. The baseline is correct. The start
-      date is worth confirming.</li>
       <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time, and I did not find a way to verify how much was actually deployed. There may well be one. I did not pursue it.</li>
     </ul>
   </div>
