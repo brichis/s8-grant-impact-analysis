@@ -963,13 +963,22 @@ def op_price_series(path: Path) -> list:
     figures around it, and a re-run doesn't depend on a file someone happened
     to download by hand."""
     if path.exists():
-        return json.loads(path.read_text())
+        cached = json.loads(path.read_text())
+        # A cache written before the rounding below truncated each timestamp to its
+        # date, which leaves some dates twice and others missing. It cannot be
+        # repaired in place, so an old-style cache is refetched instead of trusted.
+        if len({day for day, _ in cached}) == len(cached):
+            return cached
     start = int(dt.datetime(2025, 10, 1, tzinfo=dt.timezone.utc).timestamp())
     url = (f"https://coins.llama.fi/chart/coingecko:optimism?start={start}"
            f"&span=360&period=1d&searchWidth=600")
     payload = json.load(urllib.request.urlopen(url, timeout=60))
     pts = payload["coins"]["coingecko:optimism"]["prices"]
-    series = [[dt.datetime.fromtimestamp(p["timestamp"], dt.timezone.utc).strftime("%Y-%m-%d"),
+    # The API's daily points sit a minute or two either side of midnight UTC, so
+    # truncating to the date sent a 23:59 point to the day before and a 00:01 point
+    # to the day itself: 70 dates appeared twice and 71 had no point. Adding twelve
+    # hours first rounds to the nearest day, giving one point per day from the start.
+    series = [[dt.datetime.fromtimestamp(p["timestamp"] + 43200, dt.timezone.utc).strftime("%Y-%m-%d"),
                round(p["price"], 5)] for p in pts]
     path.write_text(json.dumps(series))
     return series
