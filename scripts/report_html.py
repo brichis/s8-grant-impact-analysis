@@ -64,6 +64,12 @@ def build(cohort: dict, op_price: list) -> str:
     by = {x["grantee"]: x for x in g}
     order = sorted(g, key=lambda x: -x["peak_delta_tvl_usd"])
 
+    # The price series is cached and refetched up to whenever the page is built,
+    # so left alone it runs past the date the header says the data ends. Every
+    # measured figure stops at the interim cutoff; the price line stops there too.
+    # ISO dates compare correctly as strings.
+    op_price = [p for p in op_price if p[0] <= cohort["interim_cutoff"]]
+
     charts = {
         "peak_end": {
             "names": [x["grantee"].split(" (")[0] for x in order],
