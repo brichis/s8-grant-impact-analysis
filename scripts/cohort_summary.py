@@ -56,6 +56,12 @@ OUT = REPO / "output"
 # fill price gaps — end-of-day UTC-6 like every other checkpoint read.
 OP_COIN = "optimism:0x4200000000000000000000000000000000000042"
 
+# End-of-day reads are taken at 23:59:59 in UTC-6 (Mexico City, which has no daylight
+# saving on any date this review covers). The offset is pinned here, not left to the
+# machine's clock: a naive datetime's .timestamp() reads the local zone, so the same run
+# under UTC priced OP at claim at $695k where the report says $708k.
+CHECKPOINT_TZ = dt.timezone(dt.timedelta(hours=-6))
+
 
 # Per-application dates from Karma, when scripts/karma_dates.py has fetched
 # them: creation, and the real approval date rather than a per-cycle proxy.
@@ -130,7 +136,7 @@ def karma_dates() -> dict:
 
 
 def op_price(day: dt.date) -> float:
-    ts = int(dt.datetime.combine(day, dt.time(23, 59, 59)).timestamp())
+    ts = int(dt.datetime.combine(day, dt.time(23, 59, 59), tzinfo=CHECKPOINT_TZ).timestamp())
     resp = requests.get(COINS_API_URL.format(ts=ts, coins=OP_COIN), timeout=30)
     resp.raise_for_status()
     return float(resp.json()["coins"][OP_COIN]["price"])
