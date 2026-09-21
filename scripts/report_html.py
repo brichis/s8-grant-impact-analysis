@@ -31,6 +31,19 @@ C = {  # brand tokens
     "secondary": "#efeaf6",
 }
 
+# Figure 2 gives every program its own hue. Nine categorical series is past what
+# the brand's own set covers, so these were searched for and validated against the
+# all-pairs gates on the white card: worst colour-blind ΔE 8.1 (target >= 8), worst
+# normal-vision ΔE 15.0 (floor >= 15), all nine inside the lightness band and above
+# the chroma floor. Kept as muted as those gates allow.
+SERIES = ["#b10071", "#006a9e", "#a3940b", "#908ffe", "#ff5a92",
+          "#16b3bc", "#1a6efe", "#7d5e00", "#06915d"]
+
+# The repository is public, so every script the page names is a live link
+# rather than a filename the reader cannot do anything with.
+REPO = "https://github.com/brichis/s8-grant-impact-analysis"
+BLOB = REPO + "/blob/main"
+
 MARK = ("M50 2 Q54.5 45.5 98 50 Q54.5 54.5 50 98 Q45.5 54.5 2 50 "
         "Q45.5 45.5 50 2 Z M50 35 L65 50 L50 65 L35 50 Z")
 
@@ -103,7 +116,8 @@ def build(cohort: dict, op_price: list) -> str:
       </tr>""" for x in order)
 
     data_json = json.dumps(charts, separators=(",", ":"))
-    return TEMPLATE.format(c=C, mark=MARK, rows=rows, data=data_json, cohort=c,
+    return TEMPLATE.format(c=C, s=SERIES, mark=MARK, rows=rows, data=data_json, cohort=c,
+                           repo=REPO, blob=BLOB,
                            cutoff=cohort["interim_cutoff"], generated=cohort["generated_at"][:10])
 
 
@@ -136,8 +150,20 @@ TEMPLATE = """<!doctype html>
     font-size: 17px; line-height: 28px; font-weight: 400;
     -webkit-font-smoothing: antialiased;
   }}
-  .wrap {{ max-width: 1120px; margin: 0 auto; padding: 56px 24px 96px; }}
-  .measure {{ max-width: 68ch; }}
+  /* One column for everything — prose, headings, figures and the table all end
+     on the same two lines. 775px is the reading measure the body text already
+     had; the column carries it now, so nothing sets its own width.
+     `max-width: 68ch` used to resolve differently per element (the lede at 19px
+     came out wider than the callout at 14px), which is why the page had three
+     different widths rather than two. */
+  /* Same rule as brichis.xyz, on the same tokens. The page is served in an
+     iframe, and a parent document's ::selection does not reach into one, so
+     the report has to declare it or selected text falls back to the browser
+     default blue and stops matching the site around it. */
+  ::selection {{ background: var(--coral); color: var(--plum); }}
+
+  .wrap {{ max-width: 823px; margin: 0 auto; padding: 56px 24px 96px; }}
+  .measure {{ max-width: none; }}
   .label {{
     font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; line-height: 16px;
     letter-spacing: 0.14em; text-transform: uppercase; color: var(--orchid); font-weight: 500;
@@ -153,6 +179,9 @@ TEMPLATE = """<!doctype html>
   a {{ color: var(--orchid); text-decoration: underline; text-underline-offset: 3px;
       text-decoration-thickness: 1px; }}
   a:hover {{ color: var(--signal); }}
+  code {{ font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0.88em;
+          background: var(--secondary); border-radius: 5px; padding: 1px 5px; }}
+  a code {{ background: none; padding: 0; color: inherit; }}
   strong {{ font-weight: 600; }}
   .small {{ font-size: 14px; line-height: 22px; color: var(--plum-muted); }}
   .lede {{ font-size: 19px; line-height: 31px; color: var(--plum-muted); }}
@@ -175,10 +204,47 @@ TEMPLATE = """<!doctype html>
           padding: 22px 20px 16px; margin: 28px 0 32px; }}
   .fig .cap {{ margin-top: 10px; }}
   .chart {{ width: 100%; }}
+
+  /* Hand-built legend: Plotly emits no hover event for its own, and the whole
+     point here is that pointing at a name lights that program's line. */
+  .chartkey {{ display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 10px 0 2px; }}
+  .chartkey button {{
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+    font-family: inherit; font-size: 12px; line-height: 18px; color: var(--plum-muted);
+    background: var(--card); border: 1px solid var(--border); border-radius: 99px;
+    padding: 4px 11px 4px 8px; transition: color .12s, border-color .12s, background .12s;
+  }}
+  .chartkey button .sw {{ width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto;
+                          background: var(--sw); transition: transform .12s; }}
+  .chartkey button:hover, .chartkey button:focus-visible {{ color: var(--plum); border-color: var(--sw); outline: none; }}
+  .chartkey button[aria-pressed="true"] {{ color: var(--plum); border-color: var(--sw); background: var(--haze); }}
+  .chartkey button[aria-pressed="true"] .sw {{ transform: scale(1.25); }}
+  .chartkey .hint {{ font-size: 12px; line-height: 26px; color: var(--plum-muted); }}
   .grid2 {{ display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }}
 
   .tablewrap {{ overflow-x: auto; margin: 24px 0 10px; border: 1px solid var(--border);
                 border-radius: 16px; background: var(--card); }}
+  /* A table plus the notes that explain it, in one card — the same shape the
+     figures use, where the caption sits inside `.fig` rather than loose under
+     it. The notes live outside `.tablewrap` so they do not scroll sideways
+     with the columns. */
+  .tablecard {{ background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+                margin: 24px 0 10px; overflow: hidden; }}
+  .tablecard > .tablewrap {{ border: 0; border-radius: 0; margin: 0; background: none; }}
+  .tablenotes {{ border-top: 1px solid var(--border); padding: 12px 18px 14px; }}
+  .tablenotes p {{ margin: 0; }}
+  .tablenotes p + p {{ margin-top: 6px; }}
+  /* The grantee column stays put while the rest scrolls — eleven columns never
+     fit a phone, and a row of numbers with no name on it says nothing. */
+  th[scope="row"], tfoot th {{ position: sticky; left: 0; z-index: 1; background: var(--card);
+                               box-shadow: 1px 0 0 var(--border); }}
+  thead th:first-child {{ position: sticky; left: 0; z-index: 2; background: var(--card);
+                          box-shadow: 1px 0 0 var(--border); }}
+  /* Shown only when the table really does overflow — which now depends on the
+     column width, not on the breakpoint. Set by script; hidden by default so
+     it never flashes before that runs. */
+  .scrollhint {{ display: none; }}
+  .scrollhint[data-show="1"] {{ display: block; }}
   table {{ border-collapse: collapse; width: 100%; font-size: 13px; line-height: 19px; }}
   th, td {{ padding: 10px 11px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }}
   table {{ table-layout: auto; }}
@@ -201,12 +267,22 @@ TEMPLATE = """<!doctype html>
               padding: 16px 20px; margin: 24px 0; }}
   .stars {{ display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }}
   footer {{ margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--border); }}
+  /* Touch devices: no hover, so every affordance has to be tappable. Apple's
+     44px is the target; the pill's own padding plus this gets close enough
+     without turning the legend into a wall. */
+  @media (hover: none) {{
+    .chartkey button {{ padding: 10px 14px 10px 11px; font-size: 13px; }}
+    .chartkey button .sw {{ width: 11px; height: 11px; }}
+  }}
   @media (max-width: 640px) {{
     h1 {{ font-size: 44px; line-height: 46px; }}
     h2 {{ font-size: 32px; line-height: 36px; }}
     h3 {{ font-size: 24px; line-height: 30px; }}
     body {{ font-size: 16px; line-height: 26px; }}
     .wrap {{ padding: 36px 18px 64px; }}
+    .fig {{ padding: 18px 12px 14px; border-radius: 14px; }}
+    .keys {{ grid-template-columns: 1fr; }}
+    th, td {{ padding: 9px 10px; }}
   }}
 </style>
 </head>
@@ -220,10 +296,13 @@ TEMPLATE = """<!doctype html>
   </div>
   <h1>What 2.2M OP actually bought in liquidity</h1>
   <p class="lede measure">Nine Season 8 growth programs, measured contract by contract on-chain,
-  day by day — what they reached, what they gave back, and what the next program should do
+  day by day: what they reached, what they gave back, and what the next program should do
   differently.</p>
-  <p class="small">Figures as of {generated}; still-running programs frozen at a {cutoff} cutoff.
-  Every number is derived from the committed measurements by <code>scripts/cohort_summary.py</code>.</p>
+  <p class="small">Figures as of {generated}. Programs still running are frozen at {cutoff}.
+  Every number on this page comes from the committed measurements, and the code that produces
+  them is public: <a href="{blob}/scripts/cohort_summary.py"><code>cohort_summary.py</code></a>
+  works out the figures, and <a href="{blob}/scripts/report_html.py"><code>report_html.py</code></a>
+  builds this page.</p>
   <hr class="rule">
 </header>
 
@@ -231,20 +310,20 @@ TEMPLATE = """<!doctype html>
   <h2>The short version</h2>
   <div class="keys">
     <div class="key" style="--accent: {c[coral]}"><span class="label">Measured impact</span>
-      <span class="n">+$8.00M</span><span class="t">ΔTVL across the nine programs — $3.62 per OP. Six of nine were positive.</span></div>
+      <span class="n">+$8.00M</span><span class="t">ΔTVL across the nine programs, or $3.62 per OP. Six of nine were positive.</span></div>
     <div class="key" style="--accent: {c[lilac]}"><span class="label">Concentration</span>
       <span class="n">84%</span><span class="t">of all the liquidity came from one grant, 40acres.finance.</span></div>
     <div class="key" style="--accent: {c[mint]}"><span class="label">Milestones</span>
-      <span class="n">5 of 8</span><span class="t">met Milestone 1 once a target counts as reached when it was actually reached. One met its total target.</span></div>
+      <span class="n">5 of 8</span><span class="t">grants with a Milestone 1 target reached that target on at least one day inside their incentive window. Of the seven with a full-program target, one reached it.</span></div>
     <div class="key" style="--accent: {c[butter]}"><span class="label">Recoverable</span>
       <span class="n">1.27M OP</span><span class="t">sits in claim contracts, never claimed, by grants that never ran a program.</span></div>
   </div>
   <div class="measure">
     <ul>
-      <li><strong>Programs peak early and give it back.</strong> The median program peaked on day 56 — 41% of the way in — and three of the five that met M1 were below that target again by the end.</li>
+      <li><strong>Programs peak early and give it back.</strong> The median program peaked on day 56, which is 41% of the way in. Three of the five that met M1 were below that target again by the end.</li>
       <li><strong>OP fell 55%</strong> between the average program start and the average program end. The OP behind these grants was worth $708k when claimed and $291k when the programs ended.</li>
       <li><strong>Grantees were not the slow part.</strong> From application to the first day of incentives took a median of 71 days: 35 waiting for the decision, 34 more for the money to reach the claim contract, and 15 for the team to launch. The year in the schedule was the allowance, not the work.</li>
-      <li><strong>Staging worked.</strong> 2.47M OP was never released because later tranches depended on progress — but 340k OP was claimed by grants that never ran anything.</li>
+      <li><strong>Staging worked.</strong> 2.47M OP was never released because later tranches depended on progress. But 340k OP was claimed by grants that never ran anything.</li>
     </ul>
   </div>
 </section>
@@ -253,15 +332,16 @@ TEMPLATE = """<!doctype html>
   <h2>What each program did</h2>
   <p class="measure">ΔTVL is measured at fixed end-date prices, so it counts liquidity added, not
   token prices moving. The peak is the highest the daily series reached inside the incentive
-  window; the milestone columns are judged on it.</p>
+  window, and the milestone columns are judged on it.</p>
 
   <div class="fig">
     <span class="label">Figure 1 · Peak reached vs. where it ended</span>
     <div id="c-peak" class="chart" style="height:460px"></div>
     <p class="cap small">Each program's highest day against its closing figure. Velodrome reached
-    +$10.4M and is now below zero; 40acres kept 94% of its peak.</p>
+    +$10.4M and is now below zero. 40acres kept 94% of its peak.</p>
   </div>
 
+  <div class="tablecard">
   <div class="tablewrap">
     <table>
       <thead><tr>
@@ -279,15 +359,22 @@ TEMPLATE = """<!doctype html>
       </tr></tfoot>
     </table>
   </div>
-  <p class="small">Interim programs (Curve Lending, Velodrome) have no announced end date and are
-  measured to the {cutoff} cutoff. Retention is only available where a window closed 30 days ago.</p>
+  <div class="tablenotes">
+    <p class="scrollhint small">Scroll the table sideways for the milestone, retention and peak
+    columns. The grantee names stay in place.</p>
+    <p class="small">Interim programs (Curve Lending, Velodrome) have no announced end date and are
+    measured to the {cutoff} cutoff. Retention is only available where a window closed 30 days ago.</p>
+  </div>
+  </div>
 
   <div class="fig">
     <span class="label">Figure 2 · The same nine curves, on one scale</span>
     <div id="c-curves" class="chart" style="height:430px"></div>
+    <div id="k-curves" class="chartkey" role="group" aria-label="Programs in Figure 2"></div>
     <p class="cap small">Each program's ΔTVL as a share of its own peak, against how far it was
-    through its window — hover a line to pick one out. The shape repeats: climb, peak around the
-    middle, drift down.</p>
+    through its window. Point at a name above, or at a line, to follow one program through the
+    tangle. Click a name to keep it lit. The shape repeats: climb, peak around the middle, drift
+    down.</p>
   </div>
 </section>
 
@@ -296,46 +383,46 @@ TEMPLATE = """<!doctype html>
 
   <h3>1 · Judge milestones on what actually happened</h3>
   <p class="measure">A milestone is met here if the target was reached on any day inside the
-  incentive window, evidenced by the validated daily series. A single-date checkpoint — the
-  snapshot, or the incentive end — is kept as data, but it cannot tell apart a program that
+  incentive window, evidenced by the validated daily series. A single-date checkpoint, either the
+  snapshot or the incentive end, is kept as data. But it cannot tell apart a program that
   reached its target and lost the liquidity from one that never got close.</p>
   <div class="callout measure">
     <p style="margin:0"><strong>The obvious objection is gaming:</strong> touch the target for a day,
     then pull the liquidity out. The defence is to require an average over a set number of days.
-    Here it changes nothing — the best 7-day average produces the same verdicts — which says these
+    Here it changes nothing: the best 7-day average produces the same verdicts. That says these
     peaks were levels held for weeks, not one-day spikes.</p>
   </div>
 
   <h3>2 · Twelve months is the allowance; three is the useful deadline</h3>
   <p class="measure">Every grant in this season was approved between 2 October and 17 December
-  2025. Teams had about a year to run the work end to end — and a year on, several approved grants
+  2025. Teams had about a year to run the work end to end. A year on, several approved grants
   still have nothing to show, while the ones that delivered did not need the year. From the
   application going in to the first day of incentives the median was <strong>71 days</strong>, and
   only 15 of them belonged to the team.</p>
   <div class="tablewrap"><table>
     <thead><tr><th>Stage</th><th class="num">Median</th><th class="num">Range</th></tr></thead>
     <tbody>
-      <tr><th scope="row">Application submitted → approved</th><td class="num">35 days</td><td class="num">16–74</td></tr>
-      <tr><th scope="row">Approved → OP in the claim contract</th><td class="num">34 days</td><td class="num">13–61</td></tr>
+      <tr><th scope="row">Application submitted → approved</th><td class="num">35 days</td><td class="num">15–52</td></tr>
+      <tr><th scope="row">Approved → OP in the claim contract</th><td class="num">34 days</td><td class="num">−2 to 54</td></tr>
       <tr><th scope="row">Claim contract → incentives live</th><td class="num">15 days</td><td class="num">−22 to 136</td></tr>
       <tr><th scope="row">Application → incentives live</th><td class="num">71 days</td><td class="num">51–218</td></tr>
     </tbody>
   </table></div>
   <p class="measure"><strong>40acres is the model case:</strong> application created Aug 25, 2025,
-  approved Oct 2, claimed Oct 7, distribution started Oct 15, program finished Jan 27, 2026 — 51
+  approved Oct 2, claimed Oct 7, distribution started Oct 15, program finished Jan 27, 2026. That is 51
   days from application to launch, and the best result in the cohort. At the other end, Curve
   Lending took 218. <strong>Give three months from approval to launch, not twelve</strong>, with a
-  deadline for the final report — and count the disbursement inside those three months, since it
+  deadline for the final report. Count the disbursement inside those three months, since it
   took as long as the review itself.</p>
 
   <h3>3 · The extra weeks bought decay, not liquidity</h3>
-  <p class="measure">Programs ran a median of 16.6 weeks, from 9 to 31 — but the peak landed at a
+  <p class="measure">Programs ran a median of 16.6 weeks, from 9 to 31. But the peak landed at a
   median of <strong>day 56, week eight</strong>, and it did not move later in the longer programs
   (the correlation between a program's length and the day it peaked is −0.10, i.e. none). Eight of
   the nine peaked inside twelve weeks. What the longer windows added was the decline after the
   peak, not more liquidity.</p>
   <p class="measure"><strong>So: set a fixed duration of about twelve weeks, with a review at week
-  eight</strong> — where the median program topped out — and extend only on evidence that liquidity
+  eight</strong>, where the median program topped out. Extend only on evidence that liquidity
   is still climbing. Nine programs cannot prove an optimal length, and the sample says nothing
   about whether a shorter program would have reached the same peak. What it does say is that
   running past the peak, with the incentive still paying out, is what these windows mostly
@@ -352,7 +439,7 @@ TEMPLATE = """<!doctype html>
     <ul>
       <li><strong>2.47M OP was never released</strong>, because later tranches were conditional on progress.</li>
       <li><strong>340k OP was claimed by grants that never ran a program.</strong> A 20% first tranche instead of 40% would have exposed about half of it.</li>
-      <li><strong>1.27M OP was delivered to claim contracts and never claimed</strong> — Morpho 600k, Tydro 600k, LiqPass 32k, Strands 28k, NEUS 8k. None of it left those contracts, so it can be recovered in full; LiqPass was withdrawn outright.</li>
+      <li><strong>1.27M OP was delivered to claim contracts and never claimed:</strong> Morpho 600k, Tydro 600k, LiqPass 32k, Strands 28k, NEUS 8k. None of it left those contracts, so it can be recovered in full. LiqPass was withdrawn outright.</li>
     </ul>
     <p>With both councils dissolved, nobody is verifying these milestones or deciding what happens
     to OP that was released and never used. <strong>That is an opening for the community at
@@ -366,21 +453,21 @@ TEMPLATE = """<!doctype html>
   <div class="fig">
     <span class="label">Figure 4 · OP price across the season</span>
     <div id="c-price" class="chart" style="height:330px"></div>
-    <p class="cap small">Targets were written in USD and stayed fixed; the incentive behind them
+    <p class="cap small">Targets were written in USD and stayed fixed. The incentive behind them
     lost more than half its value between the average start and the average end.</p>
   </div>
   <p class="measure">The 2.21M OP behind these programs was worth $708k when claimed and $291k when
   the programs ended. Hydrex's own milestone report notes the grant was structured at $0.65 OP
   against $0.33 at reporting time. This is also a candidate explanation for the modest $/OP: a
   program designed around a budget worth twice what it turned out to be, matched by co-incentives
-  sized the same way, delivers less than the approval assumed — and is then judged against a target
+  sized the same way, delivers less than the approval assumed, and is then judged against a target
   that never moved.</p>
 
   <h3>6 · Collect the evaluation inputs at approval time</h3>
   <p class="measure">The incentive windows and the incentivized contracts had to be rebuilt by hand
   for this review, from applications, social posts and on-chain data. Dashboard TVL is no
   substitute: across the eight grants with a price breakdown, TVL valued at each day's prices fell
-  $5.64M while ΔTVL at fixed prices rose $7.99M. The $13.62M gap is token price movement, not
+  $5.62M while ΔTVL at fixed prices rose $7.97M. The $13.59M gap is token price movement, not
   liquidity.</p>
   <p class="measure">A short form at approval, updated at each milestone, would have produced this
   review automatically: incentive start and end dates with a link to the announcement; contract
@@ -390,22 +477,24 @@ TEMPLATE = """<!doctype html>
   <h3>7 · Size the incentive in OP, and say how a USD milestone will be measured</h3>
   <p class="measure"><strong>Denominate the incentive itself in OP, not in USD.</strong> A team that
   promises "$X per week in rewards" and is paid in OP has to top up out of its own pocket when the
-  token falls — which is what happened here, Oku among them. The grant is a number of tokens; the
+  token falls. That is what happened here, Oku among them. The grant is a number of tokens, and the
   program should be written the same way.</p>
-  <p class="measure"><strong>A milestone can still be set in USD</strong> — that is often how a
+  <p class="measure"><strong>A milestone can still be set in USD.</strong> That is often how a
   target makes sense to everyone reading it. What has to come with it is <em>how it will be
   measured</em>, because a dashboard figure will not do: DefiLlama values TVL at each day's prices,
   so its number moves with the market, while a milestone needs quantities valued at one fixed date.
-  That calculation is a small piece of work with public tools — on-chain reads for quantities,
-  DefiLlama or a price API for the fixed-date prices — and it is the same calculation behind every
+  That calculation is a small piece of work with public tools: on-chain reads for quantities,
+  DefiLlama or a price API for the fixed-date prices. It is the same calculation behind every
   figure in this report. Agree on it when the grant is approved, not when it is being judged.</p>
 </section>
 
 <section id="curves">
   <h2>The nine curves</h2>
   <p class="measure">Every program's daily ΔTVL, validated against the on-chain checkpoints before
-  it was used. The shaded tail is the 30 days after the incentive ended, which never counts toward
-  the peak.</p>
+  it was used. The dotted rule marks the day the incentive stopped, and the shaded band after it is
+  the following 30 days. It shows what the liquidity did once the rewards ended, and it never
+  counts toward the peak. The two interim programs have no band: their window is still
+  open.</p>
   <div class="fig">
     <div id="c-small" class="chart" style="height:640px"></div>
     <p class="cap small">Sources: Dune token transfers for AMM pools; pool-manager events for
@@ -418,24 +507,32 @@ TEMPLATE = """<!doctype html>
   <h2>Method, and who wrote this</h2>
   <p class="measure">I served on the last iteration of the Milestones and Metrics Council, so the
   payment data here is first-hand up to the point the councils were dissolved. That is a
-  disclosure, not a claim of neutrality: everything above is reproducible from the sources named.</p>
+  disclosure, not a claim of neutrality: everything above is reproducible from the sources named,
+  and the <a href="{repo}">full pipeline is public</a> if you want to check any of it.</p>
   <div class="measure">
     <ul>
       <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized.</li>
       <li><strong>Scope.</strong> Targeted, contract by contract. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
       <li><strong>Claims.</strong> Read on Blockscout from the Hedgey claim contract the council paid into. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
-      <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first; the grantee claims it from there. The registry's delivery date is that first transfer, not the approval; application and approval dates come from Karma's own records for each application.</li>
-      <li><strong>Curve Lending's window opens before its markets existed.</strong> Its three LlamaLend vaults — every market that factory has on OP Mainnet — were deployed on 9–10 June 2026, while the recorded incentive start is 17 April, which is why its curve sits flat at zero until mid-June. The zero baseline is correct; the start date is worth confirming.</li>
-      <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time, and I did not find a way to verify how much was actually deployed. There may well be one — I did not pursue it.</li>
+      <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first, and the grantee claims it from there. The registry's delivery date is that first transfer, not the approval. Application and approval dates come from Karma's own records for each application.</li>
+      <li><strong>Curve Lending's window opens before half its scope existed.</strong> Three of its
+      six contracts are Curve pools. Those were live on day one and then stayed flat, so they add
+      almost nothing to a metric that counts change from the start. The other three are LlamaLend
+      vaults, every market that factory has on OP Mainnet, and they were deployed on 9–10 June
+      2026. The recorded incentive start is 17 April, eight weeks earlier. Between the two, the
+      curve sits near zero until mid-June rather than exactly at zero: the pools drift by a few
+      thousand dollars while the vaults still read nothing. The baseline is correct. The start
+      date is worth confirming.</li>
+      <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time, and I did not find a way to verify how much was actually deployed. There may well be one. I did not pursue it.</li>
     </ul>
   </div>
   <h3>How it was built</h3>
   <div class="measure">
     <ul>
-      <li><strong>On-chain reads:</strong> an Alchemy archive node — <code>eth_call</code> at a
+      <li><strong>On-chain reads:</strong> an Alchemy archive node: <code>eth_call</code> at a
       block per checkpoint, <code>eth_getCode</code> to date deployments by binary search,
       <code>eth_getLogs</code> for one-off events and <code>alchemy_getAssetTransfers</code> for
-      ERC-721 movements — with a local cache so every figure can be recomputed without paying for
+      ERC-721 movements. A local cache means every figure can be recomputed without paying for
       the reads twice.</li>
       <li><strong>Protocol shapes read directly:</strong> ERC-4626 vaults, Aave-style aTokens,
       Uniswap v3 and v4 (tick-walked through StateView), PancakeSwap Infinity, Velodrome and
@@ -450,22 +547,22 @@ TEMPLATE = """<!doctype html>
       <li><strong>Karma API:</strong> each application's real submission and approval dates.</li>
       <li><strong>The registry is a spreadsheet:</strong> grants, windows and scope contracts live
       in Google Sheets and are read as CSV at run time, so a human can correct a date without
-      touching code — with Apps Script calling Blockscout inside the sheet to date each payment,
+      touching code. Apps Script calls Blockscout inside the sheet to date each payment,
       rather than copying transaction dates by hand.</li>
       <li><strong>Python</strong> (pandas, requests) for the pipeline, <strong>Plotly</strong> for
       the charts on this page, and Blockscout, Etherscan and Herd for reading unfamiliar contracts
       on Base before trusting a selector or an event.</li>
       <li><strong>Every derived number is validated before it is used:</strong> each daily series
       has to reproduce every on-chain checkpoint, and the reconstructions cross-check against each
-      other — the veNFT rebuild against DefiLlama, the v4 tick walk against Uniswap's own
+      other: the veNFT rebuild against DefiLlama, the v4 tick walk against Uniswap's own
       ReservesLens.</li>
     </ul>
   </div>
   <div class="callout measure">
-    <p style="margin:0"><strong>If you have information to add</strong> — you were on one of these
-    teams, you know a program that ran without being reported, or you can identify a payment we
-    could not — please get in touch. This review is only as good as what is visible from the
-    outside.</p>
+    <p style="margin:0"><strong>If you have information to add, please get in touch.</strong>
+    Maybe you were on one of these teams, or you know a program that ran without being reported,
+    or you can identify a payment we could not. This review is only as good as what is visible
+    from the outside.</p>
   </div>
 </section>
 
@@ -486,6 +583,16 @@ const D = {data};
 const T = {{ plum: '{c[plum]}', muted: '{c[plum_muted]}', coral: '{c[coral]}', orchid: '{c[orchid]}',
              lilac: '{c[lilac]}', peri: '{c[peri]}', mint: '{c[mint]}', butter: '{c[butter]}',
              border: '{c[border]}', card: '{c[card]}', signal: '{c[signal]}' }};
+// Nine categorical hues for Figure 2, one per program. Nine series is past the
+// point where a hue set falls out of a design system, so this one was searched
+// for and checked against the all-pairs gates on a white surface: worst
+// colour-blind ΔE 8.1 (target ≥8), worst normal-vision ΔE 15.0 (floor ≥15),
+// every slot inside the lightness band and above the chroma floor. Muted on
+// purpose — they have to sit on the page without shouting. Colour is never the
+// only channel: the legend pairs each hue with its name, and hovering either
+// one greys the other eight.
+const SERIES = ['{s[0]}', '{s[1]}', '{s[2]}', '{s[3]}', '{s[4]}',
+                '{s[5]}', '{s[6]}', '{s[7]}', '{s[8]}'];
 const FONT = {{ family: "'IBM Plex Sans', system-ui, sans-serif", size: 12, color: T.muted }};
 const BASE = {{
   paper_bgcolor: T.card, plot_bgcolor: T.card, font: FONT,
@@ -495,6 +602,32 @@ const BASE = {{
 }};
 const CONF = {{ displayModeBar: false, responsive: true }};
 const clone = (o) => JSON.parse(JSON.stringify(o));
+
+// Plotly's `responsive` only resizes the canvas. Margins, subplot grids and
+// label density are fixed numbers that have to change with the breakpoint, so
+// each figure registers what it wants to do and gets called on load and again
+// whenever the page crosses 640px. Same breakpoint as the stylesheet.
+const NARROW = window.matchMedia('(max-width: 640px)');
+const fits = [];
+const onFit = (fn) => {{ fits.push(fn); fn(NARROW.matches); }};
+NARROW.addEventListener('change', (e) => fits.forEach((fn) => fn(e.matches)));
+
+// Pointer type is not fixed for the life of the page — a tablet gets docked, a
+// laptop has a touchscreen — so this is watched rather than read once at load.
+const TOUCH = window.matchMedia('(hover: none)');
+const touches = [];
+const onTouch = (fn) => {{ touches.push(fn); fn(TOUCH.matches); }};
+TOUCH.addEventListener('change', (e) => touches.forEach((fn) => fn(e.matches)));
+
+// The table is eleven columns wide and the column is not, so it scrolls at most
+// sizes — but say so only when it actually does.
+(function () {{
+  const wrap = document.querySelector('.tablewrap'), hint = document.querySelector('.scrollhint');
+  if (!wrap || !hint) return;
+  const check = () => hint.setAttribute('data-show', wrap.scrollWidth > wrap.clientWidth + 1 ? '1' : '0');
+  new ResizeObserver(check).observe(wrap);
+  check();
+}})();
 
 // Figure 1 — peak vs end, one row per grant
 (function () {{
@@ -514,47 +647,104 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
   traces[traces.length - 2].name = 'Peak in window';
   traces[traces.length - 1].name = 'Where it ended';
   const layout = clone(BASE);
-  layout.margin = {{ l: 132, r: 176, t: 40, b: 36 }};
+  // Sized to the content: the longest name measures 104px at 12px, the widest
+  // value label 45px at 11px. The old 132/176 were cut for a full-bleed figure
+  // and left a third of the card empty once everything moved to one column.
+  layout.margin = {{ l: 116, r: 64, t: 40, b: 36 }};
   layout.showlegend = true;
   layout.legend = {{ orientation: 'h', y: 1.12, x: 1, xanchor: 'right',
     font: {{ family: FONT.family, size: 11, color: T.plum }} }};
   layout.xaxis = {{ ...layout.xaxis, tickprefix: '$', tickformat: '.2s', zeroline: true, zerolinewidth: 1.5 }};
   layout.yaxis = {{ ...layout.yaxis, tickmode: 'array', tickvals: y, ticktext: d.names,
     tickfont: {{ family: FONT.family, size: 12, color: T.plum }}, gridcolor: 'rgba(0,0,0,0)' }};
-  Plotly.newPlot('c-peak', traces, layout, CONF);
+  const gd = document.getElementById('c-peak');
+  Plotly.newPlot(gd, traces, layout, CONF).then(() => {{
+    // 132px of names plus 176px of value labels leaves about 20px of plot on a
+    // phone — every dot lands on the same vertical line. On narrow screens the
+    // names shrink and the peak values come off the chart into the hover.
+    const pk = traces.length - 2;
+    onFit((n) => {{
+      Plotly.relayout(gd, {{
+        'margin.l': n ? 92 : 116, 'margin.r': n ? 30 : 64, 'margin.t': n ? 52 : 40,
+        'legend.x': n ? 0 : 1, 'legend.xanchor': n ? 'left' : 'right',
+        'legend.y': n ? 1.1 : 1.12,
+        'yaxis.tickfont.size': n ? 10 : 12,
+        'xaxis.nticks': n ? 4 : 0,
+      }});
+      Plotly.restyle(gd, {{ mode: n ? 'markers' : 'markers+text' }}, [pk]);
+    }});
+  }});
 }})();
 
 // Figure 2 — normalized curves
 (function () {{
-  const REST = 'rgba(46,27,69,0.26)';
-  const traces = D.curves.map((s) => ({{
+  const MUTED = 'rgba(46,27,69,0.13)';   // the nine at rest once one is picked out
+  const n = D.curves.length;
+  const col = (i) => SERIES[i % SERIES.length];
+  const traces = D.curves.map((s, i) => ({{
     x: s.x, y: s.y, type: 'scatter', mode: 'lines', name: s.name,
-    line: {{ color: REST, width: 1.5 }},
+    line: {{ color: col(i), width: 1.7 }},
     hovertemplate: s.name + ' — %{{y:.0f}}% of its peak at %{{x:.0f}}% of the window<extra></extra>',
   }}));
   const layout = clone(BASE);
-  layout.margin = {{ l: 56, r: 124, t: 26, b: 42 }};
+  layout.margin = {{ l: 56, r: 24, t: 26, b: 42 }};
   layout.xaxis = {{ ...layout.xaxis, title: {{ text: 'Share of the incentive window', font: FONT }}, ticksuffix: '%', range: [0, 100] }};
   // Hydrex ends at -170% of its peak; clipping the axis keeps the shared shape readable
   // and the small-multiples below show every curve in full.
   layout.yaxis = {{ ...layout.yaxis, title: {{ text: 'Share of own peak', font: FONT }},
     ticksuffix: '%', zeroline: true, zerolinewidth: 1.5, range: [-105, 108] }};
   layout.annotations = [{{ xref: 'paper', yref: 'paper', x: 0, y: -0.2, xanchor: 'left',
-    text: 'Hover a line to pick it out · Hydrex continues to −170%; see the nine curves below',
+    text: 'Hydrex continues to −170%. See the nine curves below',
     showarrow: false, font: {{ family: FONT.family, size: 10, color: T.muted }} }}];
-  const gd = document.getElementById('c-curves');
+  const gd = document.getElementById('c-curves'), key = document.getElementById('k-curves');
+
+  // One button per program, coloured like its line. Plotly's own legend has no
+  // hover event, so the legend is ours: pointing at a name lights that line,
+  // clicking pins it so it stays lit while you read the caption.
+  const btns = D.curves.map((s, i) => {{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.setProperty('--sw', col(i));
+    b.setAttribute('aria-pressed', 'false');
+    b.innerHTML = '<span class="sw" aria-hidden="true"></span>';
+    b.appendChild(document.createTextNode(s.name));
+    key.appendChild(b);
+    return b;
+  }});
+  const hint = document.createElement('span');
+  hint.className = 'hint';
+  onTouch((t) => {{ hint.textContent = t ? 'tap a name to follow one · tap it again to release'
+                                         : 'point to follow one · click to keep it lit'; }});
+  key.appendChild(hint);
+
   Plotly.newPlot(gd, traces, layout, CONF).then(() => {{
-    // Nine lines can't each carry a colour and stay readable, so the set reads as one
-    // shape and the cursor picks out a single program at a time.
-    let lit = null;
-    const light = (i) => {{
-      if (i === lit) return;
-      if (lit !== null) Plotly.restyle(gd, {{ 'line.color': REST, 'line.width': 1.5 }}, [lit]);
-      lit = i;
-      if (i !== null) Plotly.restyle(gd, {{ 'line.color': T.coral, 'line.width': 2.6 }}, [i]);
+    let pinned = null, hovered = null;
+    const draw = () => {{
+      const lit = hovered !== null ? hovered : pinned;
+      const idx = Array.from({{ length: n }}, (_, i) => i);
+      Plotly.restyle(gd, {{
+        'line.color': idx.map((i) => (lit === null || i === lit) ? col(i) : MUTED),
+        'line.width': idx.map((i) => (lit !== null && i === lit) ? 3 : 1.7),
+      }}, idx);
+      btns.forEach((b, i) => b.setAttribute('aria-pressed', String(i === pinned)));
     }};
-    gd.on('plotly_hover', (e) => light(e.points[0].curveNumber));
-    gd.on('plotly_unhover', () => light(null));
+    btns.forEach((b, i) => {{
+      b.addEventListener('mouseenter', () => {{ hovered = i; draw(); }});
+      b.addEventListener('mouseleave', () => {{ hovered = null; draw(); }});
+      b.addEventListener('focus', () => {{ hovered = i; draw(); }});
+      b.addEventListener('blur', () => {{ hovered = null; draw(); }});
+      // A tap fires mouseenter *and* click with no mouseleave to follow, so
+      // without clearing the hover here a second tap would unpin and the stale
+      // hover would keep the line lit — "tap again to release" doing nothing.
+      b.addEventListener('click', () => {{ hovered = null; pinned = pinned === i ? null : i; draw(); }});
+    }});
+    gd.on('plotly_hover', (e) => {{ hovered = e.points[0].curveNumber; draw(); }});
+    gd.on('plotly_unhover', () => {{ hovered = null; draw(); }});
+    onFit((n) => Plotly.relayout(gd, {{
+      'margin.l': n ? 46 : 56, 'margin.r': n ? 12 : 24, 'margin.b': n ? 54 : 42,
+      'xaxis.nticks': n ? 4 : 0,
+      'annotations[0].y': n ? -0.26 : -0.2,
+    }}));
   }});
 }})();
 
@@ -575,7 +765,47 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
     font: {{ family: FONT.family, size: 11, color: T.plum }} }};
   layout.xaxis = {{ ...layout.xaxis, visible: false }};
   layout.yaxis = {{ ...layout.yaxis, visible: false }};
-  Plotly.newPlot('c-flow', traces, layout, CONF);
+  const gd = document.getElementById('c-flow');
+  Plotly.newPlot(gd, traces, layout, CONF).then(() => {{
+    // Every block keeps its number. The 340k one is 5% of the bar, so it fits
+    // inside on a wide screen and not on a phone — rather than guess a pixel
+    // threshold, the label is measured in the font it is drawn in, and a block
+    // too narrow to hold it gets the number above the bar on a leader instead
+    // of losing it. Width changes at every size, not just at the breakpoint,
+    // so this is driven by a ResizeObserver rather than the media query.
+    const total = D.flow.reduce((a, b) => a + b.value, 0);
+    const labels = D.flow.map((b) => (b.value / 1e6).toFixed(2) + 'M');
+    const ruler = document.createElement('canvas').getContext('2d');
+    ruler.font = '12px ' + FONT.family;
+    const needs = labels.map((l) => ruler.measureText(l).width + 16);
+    const mids = [];
+    D.flow.reduce((acc, b, i) => {{ mids[i] = acc + b.value / 2; return acc + b.value; }}, 0);
+
+    let lastPx = -1;
+    const fitLabels = () => {{
+      const px = gd.clientWidth - 16;
+      if (px <= 0 || px === lastPx) return;
+      lastPx = px;
+      const inside = D.flow.map((b, i) => (b.value / total) * px >= needs[i]);
+      const outside = labels
+        .map((l, i) => ({{ l: l, i: i }}))
+        .filter((o) => !inside[o.i])
+        .map((o) => ({{
+          x: mids[o.i], y: 1, xref: 'x', yref: 'paper', text: o.l,
+          showarrow: true, arrowhead: 0, arrowwidth: 1, arrowcolor: T.border,
+          ax: 0, ay: -15, font: {{ family: FONT.family, size: 11, color: T.plum }},
+        }}));
+      Plotly.update(gd,
+        {{ text: labels.map((l, i) => (inside[i] ? [l] : [''])) }},
+        {{ annotations: outside, 'margin.t': outside.length ? 32 : 8 }},
+        D.flow.map((_, i) => i));
+    }};
+    new ResizeObserver(fitLabels).observe(gd);
+    onFit((n) => {{
+      Plotly.relayout(gd, {{ 'margin.b': n ? 116 : 96, 'legend.font.size': n ? 12 : 11 }});
+      fitLabels();
+    }});
+  }});
 }})();
 
 // Figure 4 — OP price
@@ -596,14 +826,31 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
     x: m[1], y: m[2], text: m[0].replace('mean', 'avg'), showarrow: true, arrowhead: 0, arrowcolor: T.border,
     ax: 0, ay: i % 2 === 0 ? -26 : -44, font: {{ family: FONT.family, size: 10, color: T.plum }},
   }}));
-  Plotly.newPlot('c-price', traces, layout, CONF);
+  const gd = document.getElementById('c-price');
+  Plotly.newPlot(gd, traces, layout, CONF).then(() => {{
+    onFit((n) => Plotly.relayout(gd, Object.assign(
+      {{ 'margin.l': n ? 46 : 56, 'margin.r': n ? 10 : 20, 'xaxis.nticks': n ? 3 : 0 }},
+      // Five dated markers in 330px; alternating the labels further apart is
+      // what keeps them off each other.
+      ...p.marks.map((_, i) => ({{ ['annotations[' + i + '].ay']: n ? (i % 2 === 0 ? -22 : -46) : (i % 2 === 0 ? -26 : -44) }})),
+    )));
+  }});
 }})();
 
 // The nine curves — small multiples
 (function () {{
-  const cols = 3, rows = Math.ceil(D.small.length / cols), traces = [], layout = clone(BASE);
-  layout.grid = {{ rows: rows, columns: cols, pattern: 'independent', roworder: 'top to bottom' }};
-  layout.margin = {{ l: 52, r: 16, t: 34, b: 34 }};
+  const gd = document.getElementById('c-small');
+  // Three columns on a phone puts each panel in ~90px: the titles run into each
+  // other and the date ticks overlap the neighbour. The grid is baked in at plot
+  // time, so the breakpoint rebuilds the figure rather than nudging margins.
+  const build = (narrow) => {{
+  // Two columns, not three: in a 775px column three panels would be ~250px each
+  // and the titles would start colliding again. Two gives ~387px — wider than
+  // the three-up ever was on the old full-bleed page.
+  const cols = narrow ? 1 : 2, rows = Math.ceil(D.small.length / cols), traces = [], layout = clone(BASE);
+  layout.grid = {{ rows: rows, columns: cols, pattern: 'independent', roworder: 'top to bottom',
+                  ygap: narrow ? 0.34 : 0.3 }};
+  layout.margin = {{ l: narrow ? 56 : 52, r: 16, t: 34, b: 34 }};
   layout.annotations = [];
   layout.shapes = [];
   D.small.forEach((s, i) => {{
@@ -615,19 +862,41 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
     traces.push({{ x: [s.peak_date], y: [s.peak], type: 'scatter', mode: 'markers', xaxis: 'x' + ax, yaxis: 'y' + ax,
       marker: {{ size: 8, color: T.coral, line: {{ color: T.card, width: 2 }} }},
       hovertemplate: s.name + ' — peak %{{y:$,.0f}} on %{{x}}<extra></extra>' }});
-    layout['xaxis' + ax] = {{ gridcolor: T.border, showticklabels: true, nticks: 3, tickfont: {{ ...FONT, size: 10 }} }};
+    layout['xaxis' + ax] = {{ gridcolor: T.border, showticklabels: true, nticks: narrow ? 4 : 3, tickfont: {{ ...FONT, size: 10 }} }};
     layout['yaxis' + ax] = {{ gridcolor: T.border, zeroline: true, zerolinecolor: T.border,
       tickprefix: '$', tickformat: '.2s', nticks: 4, tickfont: {{ ...FONT, size: 10 }} }};
     layout.annotations.push({{ text: s.name + (s.ongoing ? ' · interim' : ''), xref: 'x' + ax + ' domain',
       yref: 'y' + ax + ' domain', x: 0, y: 1.16, showarrow: false, xanchor: 'left',
       font: {{ family: FONT.family, size: 12, color: T.plum }} }});
+    // The 30 days after the incentive ended. It was drawn at 5% before, which is
+    // invisible on white — it needs a fill you can actually see, a rule on the
+    // day the incentive stopped, and a label, or it reads as nothing at all.
+    // The two interim programs have no tail: their window is still open.
     if (inw.length && inw.length < s.x.length) {{
+      const cut = inw[inw.length - 1], last = s.x[s.x.length - 1];
       layout.shapes.push({{ type: 'rect', xref: 'x' + ax, yref: 'y' + ax + ' domain',
-        x0: inw[inw.length - 1], x1: s.x[s.x.length - 1], y0: 0, y1: 1,
-        fillcolor: 'rgba(46,27,69,0.05)', line: {{ width: 0 }}, layer: 'below' }});
+        x0: cut, x1: last, y0: 0, y1: 1,
+        fillcolor: 'rgba(107,90,128,0.13)', line: {{ width: 0 }}, layer: 'below' }});
+      layout.shapes.push({{ type: 'line', xref: 'x' + ax, yref: 'y' + ax + ' domain',
+        x0: cut, x1: cut, y0: 0, y1: 1,
+        line: {{ color: T.muted, width: 1, dash: 'dot' }}, layer: 'below' }});
+      // Anchored just inside the rule, not at the last day — a right-anchored
+      // label sits on the subplot edge and gets clipped.
+      layout.annotations.push({{ text: '+30d', xref: 'x' + ax, yref: 'y' + ax + ' domain',
+        x: cut, y: 0.03, xanchor: 'left', xshift: 4, yanchor: 'bottom', showarrow: false,
+        font: {{ family: FONT.family, size: 9, color: T.muted }} }});
     }}
   }});
-  Plotly.newPlot('c-small', traces, layout, CONF);
+  return {{ traces, layout }};
+  }};
+  onFit((narrow) => {{
+    const {{ traces, layout }} = build(narrow);
+    // One panel per row needs the height the rows actually take, or nine charts
+    // get squeezed into the 640px the desktop grid was sized for.
+    gd.style.height = (narrow ? D.small.length * 185
+                              : Math.ceil(D.small.length / 2) * 215) + 'px';
+    Plotly.react(gd, traces, layout, CONF).then(() => Plotly.Plots.resize(gd));
+  }});
 }})();
 </script>
 </body>
