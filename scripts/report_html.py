@@ -130,7 +130,7 @@ TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Season 8 Growth Grants — TVL Impact Review</title>
+<title>Season 8 Growth Grants — Observed ΔTVL Review</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -294,10 +294,10 @@ TEMPLATE = """<!doctype html>
     <svg width="18" height="18" viewBox="0 0 100 100" aria-hidden="true"><path d="{mark}" fill="{c[coral]}" fill-rule="evenodd"/></svg>
     <span class="label">Optimism · Season 8 · Growth grants</span>
   </div>
-  <h1>What 2.2M OP actually bought in liquidity</h1>
+  <h1>What the liquidity did after 2.2M OP</h1>
   <p class="lede measure">Nine Season 8 growth programs, measured contract by contract on-chain,
-  day by day: what they reached, what they gave back, and what the next program should do
-  differently.</p>
+  day by day: what the liquidity in the incentivized contracts did while the rewards ran, what it
+  did afterwards, and what the next program should do differently.</p>
   <p class="small">Figures as of {generated}. Programs still running are frozen at {cutoff}.
   Every number on this page comes from the committed measurements, and the code that produces
   them is public: <a href="{blob}/scripts/cohort_summary.py"><code>cohort_summary.py</code></a>
@@ -309,20 +309,33 @@ TEMPLATE = """<!doctype html>
 <section id="short">
   <h2>The short version</h2>
   <div class="keys">
-    <div class="key" style="--accent: {c[coral]}"><span class="label">Measured impact</span>
-      <span class="n">+$8.00M</span><span class="t">ΔTVL across the nine programs, or $3.62 per OP. Six of nine were positive.</span></div>
+    <div class="key" style="--accent: {c[coral]}"><span class="label">Observed ΔTVL</span>
+      <span class="n">+$8.00M</span><span class="t">in the targeted contracts across the nine programs, or $3.62 per OP claimed. Six of nine were positive.</span></div>
     <div class="key" style="--accent: {c[lilac]}"><span class="label">Concentration</span>
-      <span class="n">84%</span><span class="t">of all the liquidity came from one grant, 40acres.finance.</span></div>
+      <span class="n">84%</span><span class="t">of the net total came from one grant, 40acres.finance. Of the positive movements alone it is 75.8%.</span></div>
     <div class="key" style="--accent: {c[mint]}"><span class="label">Milestones</span>
       <span class="n">5 of 8</span><span class="t">grants with a Milestone 1 target reached that target on at least one day inside their incentive window. Of the seven with a full-program target, one reached it.</span></div>
     <div class="key" style="--accent: {c[butter]}"><span class="label">Recoverable</span>
       <span class="n">1.27M OP</span><span class="t">sits in claim contracts, never claimed, by grants that never ran a program.</span></div>
   </div>
+  <div class="callout measure">
+    <p style="margin:0 0 10px"><strong>What this measures, and what it does not.</strong> Every
+    figure here is an observation, not an attribution. It is the change in TVL inside the contracts
+    each grant said it would incentivize, between the first and last day of its incentive window,
+    with quantities valued at one fixed date. There is no counterfactual: nothing here shows what
+    those contracts would have done without the OP, and no part of the movement is attributed to
+    the incentive.</p>
+    <p style="margin:0">A different method gives a different number, and that is the point. The
+    Optimism Collective's own <a href="https://gov.optimism.io/t/s8-grants-council-impact-analysis/10584">OSO
+    analysis</a> applied an attribution model to a partly overlapping set of projects and reported
+    roughly $3M of attribution-adjusted TVL. Read the $8.00M below as "this much liquidity moved in
+    the contracts that were paid to attract it", not as "the OP produced this much".</p>
+  </div>
   <div class="measure">
     <ul>
       <li><strong>Programs peak early and give it back.</strong> The median program peaked on day 56, which is 41% of the way in. Three of the five that met M1 were below that target again by the end.</li>
       <li><strong>OP fell 55%</strong> between the average program start and the average program end. The OP behind these grants was worth $708k when claimed and $291k when the programs ended.</li>
-      <li><strong>Grantees were not the slow part.</strong> From application to the first day of incentives took a median of 71 days: 35 waiting for the decision, 34 more for the money to reach the claim contract, and 15 for the team to launch. The year in the schedule was the allowance, not the work.</li>
+      <li><strong>Grantees were not the slow part.</strong> From application to the first day of incentives took a median of 71 days, of which the team's own launch step was a median of 15. The stage medians are 35 days to the decision, 34 to the claim contract and 15 to launch, but those are medians of three separate distributions and do not add up to the 71: no single grant took exactly that route. The year in the schedule was the allowance, not the work.</li>
       <li><strong>Staging worked.</strong> 2.47M OP was never released because later tranches depended on progress. But 340k OP was claimed by grants that never ran anything.</li>
     </ul>
   </div>
@@ -398,18 +411,22 @@ TEMPLATE = """<!doctype html>
   2025. Teams had about a year to run the work end to end. A year on, several approved grants
   still have nothing to show, while the ones that delivered did not need the year. From the
   application going in to the first day of incentives the median was <strong>71 days</strong>, and
-  only 15 of them belonged to the team.</p>
+  the team's own step had a median of 15. Each stage below is the median of its own distribution,
+  so the three do not sum to the 71 in the last row. Each row is a separate ranking of the same
+  nine grants.</p>
   <div class="tablewrap"><table>
     <thead><tr><th>Stage</th><th class="num">Median</th><th class="num">Range</th></tr></thead>
     <tbody>
       <tr><th scope="row">Application submitted → approved</th><td class="num">35 days</td><td class="num">15–52</td></tr>
-      <tr><th scope="row">Approved → OP in the claim contract</th><td class="num">34 days</td><td class="num">−2 to 54</td></tr>
+      <tr><th scope="row">Approved → OP in the claim contract</th><td class="num">34 days</td><td class="num">19–54</td></tr>
       <tr><th scope="row">Claim contract → incentives live</th><td class="num">15 days</td><td class="num">−22 to 136</td></tr>
       <tr><th scope="row">Application → incentives live</th><td class="num">71 days</td><td class="num">51–218</td></tr>
     </tbody>
   </table></div>
   <p class="measure"><strong>40acres is the model case:</strong> application created Aug 25, 2025,
-  approved Oct 2, claimed Oct 7, distribution started Oct 15, program finished Jan 27, 2026. That is 51
+  announced as approved in the <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">Cycle
+  41 report</a> on Sep 11, OP delivered to the claim contract Sep 30, claimed Oct 7, distribution
+  started Oct 15, program finished Jan 27, 2026. That is 51
   days from application to launch, and the best result in the cohort. At the other end, Curve
   Lending took 218. <strong>Give three months from approval to launch, not twelve</strong>, with a
   deadline for the final report. Count the disbursement inside those three months, since it
@@ -418,7 +435,8 @@ TEMPLATE = """<!doctype html>
   <h3>3 · The extra weeks bought decay, not liquidity</h3>
   <p class="measure">Programs ran a median of 16.6 weeks, from 9 to 31. But the peak landed at a
   median of <strong>day 56, week eight</strong>, and it did not move later in the longer programs
-  (the correlation between a program's length and the day it peaked is −0.10, i.e. none). Eight of
+  (the Spearman rank correlation between a program's length and the day it peaked is −0.10, i.e.
+  none; Pearson on the same pairs gives −0.13, which says the same thing). Eight of
   the nine peaked inside twelve weeks. What the longer windows added was the decline after the
   peak, not more liquidity.</p>
   <p class="measure"><strong>So: set a fixed duration of about twelve weeks, with a review at week
@@ -428,25 +446,31 @@ TEMPLATE = """<!doctype html>
   running past the peak, with the incentive still paying out, is what these windows mostly
   bought.</p>
 
-  <h3>4 · Staged payments worked, and there is OP to recover right now</h3>
+  <h3>4 · Staged payments worked, and there is OP worth trying to recover</h3>
   <div class="fig">
     <span class="label">Figure 3 · Where the 6.29M OP went</span>
     <div id="c-flow" class="chart" style="height:220px"></div>
-    <p class="cap small">Only the first block bought a measured program. The third block never left
-    the claim contracts.</p>
+    <p class="cap small">Only the first block funded a measured program. The third block never left
+    the claim contracts. The four blocks are built from the Council's five cycle reports and the
+    Foundation's <a href="https://docs.google.com/spreadsheets/d/1Ul8iMTsOFUKUmqz6MK0zpgt8Ki8tFtoWKGlwXj-Op34/edit">public
+    delivery tracker</a>, cross-checked against the Hedgey claim contract on-chain.</p>
   </div>
   <div class="measure">
     <ul>
       <li><strong>2.47M OP was never released</strong>, because later tranches were conditional on progress.</li>
       <li><strong>340k OP was claimed by grants that never ran a program.</strong> A 20% first tranche instead of 40% would have exposed about half of it.</li>
-      <li><strong>1.27M OP was delivered to claim contracts and never claimed:</strong> Morpho 600k, Tydro 600k, LiqPass 32k, Strands 28k, NEUS 8k. None of it left those contracts, so it can be recovered in full. LiqPass was withdrawn outright.</li>
+      <li><strong>1.27M OP was delivered to claim contracts and never claimed:</strong> Morpho 600k, Tydro 600k, LiqPass 32k, Strands 28k, NEUS 8k. None of it has left those contracts, which is visible on-chain. Whether it can be recovered is a separate question this review does not answer: that depends on the terms of each Hedgey campaign, on who holds the authority to cancel one, and on the grant terms themselves. None of the fifteen has reached its one-year mark yet, so nothing has expired. Treat the 1.27M as potentially recoverable and worth pursuing, not as recovered. LiqPass was withdrawn outright.</li>
     </ul>
-    <p>With both councils dissolved, nobody is verifying these milestones or deciding what happens
-    to OP that was released and never used. <strong>That is an opening for the community at
-    large:</strong> watch whether these programs are delivered, and where they are not, claw back
-    what can still be recovered. <strong>The fifteen grants that never ran a program were approved
-    between 16 October and 17 December 2025</strong>, so each reaches one year between October and
-    December 2026: none has passed that mark yet, and all of them do within three months.</p>
+    <p>Both councils were dissolved on 15 July 2026. The remaining milestones are not unattended:
+    the approved <a href="https://vote.optimism.io/proposals/94653586928704829987664319556957069435634532914401865187521227109996000544034">dissolution
+    proposal</a> states that any remaining milestones for existing Grants Council grants will be
+    monitored by the Foundation through a third-party contractor. What the proposal does not
+    settle is who decides what happens to OP that was released and never used. <strong>That is
+    still an opening for the community at large:</strong> watch whether these programs are
+    delivered, and press for recovery where they are not. <strong>The fifteen grants that never ran
+    a program were approved between 16 October and 17 December 2025</strong>, so each reaches one
+    year between October and December 2026: none has passed that mark yet, and all of them do
+    within three months.</p>
   </div>
 
   <h3>5 · OP moved too much for USD-denominated planning</h3>
@@ -491,7 +515,13 @@ TEMPLATE = """<!doctype html>
 <section id="curves">
   <h2>The nine curves</h2>
   <p class="measure">Every program's daily ΔTVL, validated against the on-chain checkpoints before
-  it was used. The dotted rule marks the day the incentive stopped, and the shaded band after it is
+  it was used. <strong>These daily series do not always end on the table's closing figure</strong>,
+  for two reasons. For the seven finished programs the line continues 30 days past the incentive
+  end, so its last point is a later date than the one the table reports. And for Velodrome the
+  daily series is rebuilt from Dune token transfers, which do not cover Soneium: the line therefore
+  excludes $62,904 of ΔTVL that the table includes, because the table is measured by direct
+  on-chain reads across every chain in scope. Where the two differ, the table is the measurement
+  and the line is the shape. The dotted rule marks the day the incentive stopped, and the shaded band after it is
   the following 30 days. It shows what the liquidity did once the rewards ended, and it never
   counts toward the peak. The two interim programs have no band: their window is still
   open.</p>
@@ -511,10 +541,14 @@ TEMPLATE = """<!doctype html>
   and the <a href="{repo}">full pipeline is public</a> if you want to check any of it.</p>
   <div class="measure">
     <ul>
-      <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized.</li>
+      <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized. The formula is the one in the <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>.</li>
+      <li><strong>The window here is not the official one.</strong> The S8 methodology opens the window at grant delivery and closes it at the earlier of the incentive close and the season close. This review opens it on the first day incentives were actually paid and closes it on the last, because delivery ran a median of 15 days ahead of the first day of incentives here, and as much as 136 for Curve Lending, so counting from delivery would charge a program with liquidity it was not yet paying for. The two interim programs are then read at a {cutoff} cutoff, which is after the season close. Both choices move the figures, and both are stated so anyone can recompute with the official window instead.</li>
       <li><strong>Scope.</strong> Targeted, contract by contract. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
-      <li><strong>Claims.</strong> Read on Blockscout from the Hedgey claim contract the council paid into. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
-      <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first, and the grantee claims it from there. The registry's delivery date is that first transfer, not the approval. Application and approval dates come from Karma's own records for each application.</li>
+      <li><strong>Which grants this covers.</strong> The Council approved <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">24 applications</a> on final review across Season 8, spending the full 6.29M OP budget. This review measures the <strong>nine</strong> of those that claimed their OP and ran an incentive program that could be measured on-chain. The other fifteen are counted in the OP figures but have no ΔTVL. OSO's earlier analysis counted 23 projects, before the final cycle closed the roster at 24.</li>
+      <li><strong>Two programs are censored, not finished.</strong> Curve Lending and Velodrome have no announced end date. Their figures are a reading taken at the {cutoff} cutoff, with the incentives still running, so their ΔTVL, peak and retention are not comparable to the seven that closed. They are marked interim throughout.</li>
+      <li><strong>Claims.</strong> Read on Blockscout from the <a href="https://optimism.blockscout.com/address/0x8A2725a6f04816A5274dDD9FEaDd3bd0C253C1A6">Hedgey ClaimCampaigns contract</a> the council paid into, and the <a href="https://optimism.blockscout.com/address/0xC0603610C7F923c93b18B48eF63F0d733CB8C89e">Safe</a> that administered the campaigns. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
+      <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first, and the grantee claims it from there. The registry's delivery date is that first transfer, not the approval.</li>
+      <li><strong>The approval date is a cycle date, not a decision date.</strong> Application dates come from Karma. Approval dates are the day the Council's cycle report announcing the grant was published, which is the earliest public evidence of the decision; the decision itself may have been taken days earlier. Karma's own approval field clusters on three dates because it records the cycle, not the case, and it files 40acres under Cycle 42 although the <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">Cycle 41 report</a> already listed it as passed. This page uses the Cycle 41 date for 40acres. The four stage medians are unchanged either way; only 40acres' own split and the approved-to-claim range move.</li>
       <li><strong>Curve Lending's window opens before half its scope existed.</strong> Three of its
       six contracts are Curve pools. Those were live on day one and then stayed flat, so they add
       almost nothing to a metric that counts change from the start. The other three are LlamaLend
@@ -556,6 +590,16 @@ TEMPLATE = """<!doctype html>
       has to reproduce every on-chain checkpoint, and the reconstructions cross-check against each
       other: the veNFT rebuild against DefiLlama, the v4 tick walk against Uniswap's own
       ReservesLens.</li>
+    </ul>
+  </div>
+  <h3>Sources</h3>
+  <div class="measure">
+    <ul>
+      <li><strong>Code and measurements.</strong> The <a href="{repo}">pipeline repository</a>, including the per-grantee measurements in <code>output/</code> and <code>data/</code>, the Dune queries under <code>scripts/dune/</code>, and <a href="{blob}/scripts/cohort_summary.py"><code>cohort_summary.py</code></a>, which turns them into every figure on this page.</li>
+      <li><strong>Council decisions and budget.</strong> The Season 8 cycle reports: <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">41</a>, <a href="https://gov.optimism.io/t/cycle-42-grants-report/10308">42</a>, <a href="https://gov.optimism.io/t/cycle-43-grants-council-report/10363">43</a>, <a href="https://gov.optimism.io/t/cycle-44-grants-report/10410">44</a> and the <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">Cycle 46 and Season 8 final report</a>, which together account for all 24 approvals and the full 6.29M OP.</li>
+      <li><strong>Payments.</strong> The Foundation's <a href="https://docs.google.com/spreadsheets/d/1Ul8iMTsOFUKUmqz6MK0zpgt8Ki8tFtoWKGlwXj-Op34/edit">public delivery tracker</a>, cross-checked on-chain.</li>
+      <li><strong>Method.</strong> The <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>, and <a href="https://gov.optimism.io/t/s8-grants-council-impact-analysis/10584">OSO's impact analysis</a> for a different approach to the same season.</li>
+      <li><strong>Council dissolution.</strong> The <a href="https://vote.optimism.io/proposals/94653586928704829987664319556957069435634532914401865187521227109996000544034">Milestones and Metrics Council</a> and <a href="https://vote.optimism.io/proposals/17610825935142917870367542494361266033681870435033393450622576978064079317264">Grants Council</a> dissolution proposals, both approved 15 July 2026.</li>
     </ul>
   </div>
   <div class="callout measure">
