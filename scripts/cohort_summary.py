@@ -78,15 +78,52 @@ CYCLE_APPROVED = {
 }
 
 
+# Karma records a status change, not the Council's decision, and the two can be
+# weeks apart. Correcting that needs published evidence per grant, not a blanket
+# rule: a grant whose Karma date falls after its own cycle report may have been
+# a conditional pass that was confirmed later, in which case Karma is right and
+# the report is not. Only grants the reports show as already decided are listed
+# here. `_approval_date` warns about every other case instead of guessing.
+APPROVAL_OVERRIDES = {
+    # Cycle 41's report (2025-09-12) lists 40acres as "Passed"; Karma did not
+    # flip the record until 2025-10-02, the day the cycle 42 report went up.
+    # Left as Karma had it, the grant is approved two days *after* its OP had
+    # already reached the claim contract.
+    "APP-CS0S7GDN-MR3JI7": (dt.date(2025, 9, 12), "cycle 41 report"),
+}
+
+
+def _approval_date(karma: dict, cycle: str, grant_id: str) -> tuple[dt.date | None, str | None]:
+    """The approval date, and where it came from."""
+    override = APPROVAL_OVERRIDES.get(grant_id)
+    if override:
+        return override[0], override[1]
+    cycle_day = CYCLE_APPROVED.get(cycle)
+    karma_day = dt.date.fromisoformat(karma["approved_at"]) if karma.get("approved_at") else None
+    if karma_day and cycle_day and karma_day > cycle_day:
+        print(f"  note: {karma.get('grantee') or grant_id} is cycle {cycle}, whose report went up "
+              f"{cycle_day}, but Karma dates the approval {karma_day}. Using Karma. If that cycle's "
+              f"report shows an unconditional pass, add an override.")
+    if karma_day:
+        return karma_day, "karma"
+    return cycle_day, ("cycle report" if cycle_day else None)
+
+
 KARMA: dict = {}
 
 
 def karma_dates() -> dict:
     """Per-application dates from Karma (scripts/karma_dates.py), if fetched.
 
-    Karma knows when each application was created and when it was approved,
-    which is what the timing figures want; the cycle-report dates below are
-    only a fallback for a grant Karma has no record of."""
+    Karma knows when each application was created, and usually when it was
+    approved. Usually, because its `approved` status change is when someone
+    moved the record, not when the Council decided: 40acres sits in cycle 41
+    by its own Karma record and by the registry, yet its status flipped on
+    2025-10-02, the day the *cycle 42* report was published — three weeks
+    after the cycle 41 report had already listed it as passed. A grant cannot
+    have been approved after the report announcing it, so `_approval_date`
+    below treats the cycle report as the upper bound and Karma as the
+    refinement inside it."""
     if not KARMA_DATES.exists():
         return {}
     return json.loads(KARMA_DATES.read_text())
@@ -203,8 +240,7 @@ def build(directory: Path, grantees: dict, windows: dict) -> dict:
     claimed = registry._to_date(registry._cell(g, "date_tx1"))
     cycle = str(registry._cell(g, "cycle") or "").strip()
     karma = (KARMA or {}).get(str(registry._cell(g, "grant_id") or "").strip(), {})
-    approved = (dt.date.fromisoformat(karma["approved_at"]) if karma.get("approved_at")
-                else CYCLE_APPROVED.get(cycle))
+    approved, approval_source = _approval_date(karma, cycle, grant_id)
     created = dt.date.fromisoformat(karma["created"]) if karma.get("created") else None
     snapshot = registry._to_date(registry._cell(w, "snapshot"))
     op_at_claim = op_price(claimed) if claimed else None
@@ -228,7 +264,7 @@ def build(directory: Path, grantees: dict, windows: dict) -> dict:
         "cycle": cycle or None,
         "created": created.isoformat() if created else None,
         "approved": approved.isoformat() if approved else None,
-        "approval_source": "karma" if karma.get("approved_at") else ("cycle report" if approved else None),
+        "approval_source": approval_source,
         "created_to_approval_days": (approved - created).days if (approved and created) else None,
         "delivered_to_claim_contract": delivered.isoformat() if delivered else None,
         "approval_to_start_days": (start - approved).days if approved else None,
