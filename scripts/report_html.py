@@ -318,21 +318,11 @@ TEMPLATE = """<!doctype html>
     <div class="key" style="--accent: {c[butter]}"><span class="label">Recoverable</span>
       <span class="n">1.27M OP</span><span class="t">sits in claim contracts, never claimed, by grants that never ran a program.</span></div>
   </div>
-  <div class="callout measure">
-    <p style="margin:0 0 10px"><strong>What this measures, and what it does not.</strong> Every
-    figure here is an observation, not an attribution. It is the change in TVL inside the contracts
-    each grant said it would incentivize, between the first and last day of its incentive window,
-    with quantities valued at one fixed date.</p>
-    <p style="margin:0 0 10px">There is no counterfactual. Nothing here shows what those contracts
-    would have done without the OP, and no part of the movement is attributed to the incentive.
-    Doing that would mean modelling what liquidity would have arrived anyway, and the assumptions
-    that model needs cannot be verified from outside the protocols. So the choice here was to
-    measure only what can be read from the chain and to say so, rather than to publish an
-    attributed number that looks more precise than the evidence behind it.</p>
-    <p style="margin:0">Read the $8.00M below as "this much liquidity moved in the contracts that
-    were paid to attract it", not as "the OP produced this much". <a href="#method">The method
-    section</a> sets out every other decision and why it was taken.</p>
-  </div>
+  <p class="small measure"><strong>One way of looking at the season.</strong> These figures are a
+  targeted measurement: the change in TVL inside the contracts each grant named, across the days it
+  actually paid incentives, with quantities valued at one fixed date. A different formula, window
+  or scope gives a different number. <a href="#method">The method</a> sets out every choice made
+  here, so anyone can follow where a difference would come from.</p>
   <div class="measure">
     <ul>
       <li><strong>Programs peak early and give it back.</strong> The median program peaked on day 56, which is 41% of the way in. Three of the five that met M1 were below that target again by the end.</li>
@@ -547,7 +537,7 @@ TEMPLATE = """<!doctype html>
   recompute from the same measurements.</p>
   <div class="measure">
     <ul>
-      <li><strong>This is an observation, not an attribution.</strong> The figures say what the liquidity in each grant's own contracts did during its incentive window. They do not say the incentive caused it. Attribution would mean modelling the liquidity that would have arrived anyway, and those assumptions cannot be checked from outside the protocols, so none is applied here.</li>
+      <li><strong>This is an observation, not an attribution.</strong> The figures say what the liquidity in each grant's own contracts did while the incentives ran. They do not separate out how much of that the incentive caused, which would need a model of what would have arrived anyway. That is a different exercise, and this review does not attempt it.</li>
       <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized. The formula is the one in the <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>.</li>
       <li><strong>The window here is not the official one.</strong> The S8 methodology opens the window at grant delivery and closes it at the earlier of the incentive close and the season close. This review opens it on the first day incentives were actually paid and closes it on the last, because delivery ran a median of 15 days ahead of the first day of incentives here, and as much as 136 for Curve Lending, so counting from delivery would charge a program with liquidity it was not yet paying for. The two interim programs are then read at a {cutoff} cutoff, which is after the season close. Both choices move the figures, and both are stated so anyone can recompute with the official window instead.</li>
       <li><strong>Scope is targeted, contract by contract, not protocol-wide.</strong> Each grant named the contracts it would incentivize, and only those are measured. A protocol's headline TVL moves for reasons that have nothing to do with a grant, so counting all of it would credit or blame a program for liquidity it never touched. The cost of this choice is that it misses any spillover into the rest of the protocol. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
