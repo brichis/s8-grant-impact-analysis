@@ -105,7 +105,7 @@ def build(cohort: dict, op_price: list) -> str:
         <th scope="row">{x['grantee'].split(' (')[0]}{' <span class="tag">interim</span>' if x['ongoing'] else ''}</th>
         <td class="num">{x['op_budget']:,.0f}</td>
         <td class="num">{money(x['delta_tvl_usd'])}</td>
-        <td class="num">{x['usd_per_op']:.2f}</td>
+        <td class="num">{f"{x['usd_per_op']:.2f}".replace('-', '−')}</td>
         <td class="num">{short(x['target_milestone1']) if x['target_milestone1'] else '—'}</td>
         <td class="mark">{verdict(x['milestone1_met'])}</td>
         <td class="num">{short(x['target_total']) if x['target_total'] else '—'}</td>
@@ -298,11 +298,11 @@ TEMPLATE = """<!doctype html>
   <p class="lede measure">Nine Season 8 growth programs, measured contract by contract on-chain,
   day by day: what the liquidity in the incentivized contracts did while the rewards ran, what it
   did afterwards, and what the next program should do differently.</p>
-  <p class="small">Figures as of {generated}. Programs still running are frozen at {cutoff}.
-  Every number on this page comes from the committed measurements, and the code that produces
-  them is public: <a href="{blob}/scripts/cohort_summary.py"><code>cohort_summary.py</code></a>
+  <p class="small">Data through {cutoff}, when the two programs still running were frozen. Page
+  built {generated}. The ΔTVL, peak and milestone figures come from measurements committed to a
+  public repository: <a href="{blob}/scripts/cohort_summary.py"><code>cohort_summary.py</code></a>
   works out the figures, and <a href="{blob}/scripts/report_html.py"><code>report_html.py</code></a>
-  builds this page.</p>
+  builds this page. Dates and OP amounts come from the sources listed at the end.</p>
   <hr class="rule">
 </header>
 
@@ -315,7 +315,7 @@ TEMPLATE = """<!doctype html>
       <span class="n">84%</span><span class="t">of the net total came from one grant, 40acres.finance. Of the positive movements alone it is 75.8%.</span></div>
     <div class="key" style="--accent: {c[mint]}"><span class="label">Milestones</span>
       <span class="n">5 of 8</span><span class="t">grants with a Milestone 1 target reached that target on at least one day inside their incentive window. Of the seven with a full-program target, one reached it.</span></div>
-    <div class="key" style="--accent: {c[butter]}"><span class="label">Recoverable</span>
+    <div class="key" style="--accent: {c[butter]}"><span class="label">Unclaimed</span>
       <span class="n">1.27M OP</span><span class="t">sits in claim contracts, never claimed, by grants that never ran a program.</span></div>
   </div>
   <p class="small measure"><strong>One way of looking at the season.</strong> These figures are a
@@ -325,7 +325,7 @@ TEMPLATE = """<!doctype html>
   here, so anyone can follow where a difference would come from.</p>
   <div class="measure">
     <ul>
-      <li><strong>Programs peak early and give it back.</strong> The median program peaked on day 56, which is 41% of the way in. Three of the five that met M1 were below that target again by the end.</li>
+      <li><strong>Programs peak early and give it back.</strong> The median program peaked on day 56, which is 41% of the way in. Three of the five that met M1 were below that target again at their last reading: Extrafi when it closed, and Velodrome and Curve Lending at the cutoff.</li>
       <li><strong>OP fell 55%</strong> between the average program start and the average program end. The OP behind these grants was worth $708k when claimed and $291k when the programs ended.</li>
       <li><strong>Grantees were not the slow part.</strong> From application to the first day of incentives took a median of 71 days, of which the team's own launch step was a median of 15. The stage medians are 35 days to the decision, 34 to the claim contract and 15 to launch, but those are medians of three separate distributions and do not add up to the 71: no single grant took exactly that route. The year in the schedule was the allowance, not the work.</li>
       <li><strong>Staging worked.</strong> 2.47M OP was never released because later tranches depended on progress. But 340k OP was claimed by grants that never ran anything.</li>
@@ -343,7 +343,7 @@ TEMPLATE = """<!doctype html>
     <span class="label">Figure 1 · Peak reached vs. where it ended</span>
     <div id="c-peak" class="chart" style="height:460px"></div>
     <p class="cap small">Each program's highest day against its closing figure. Velodrome reached
-    +$10.4M and is now below zero. 40acres kept 94% of its peak.</p>
+    +$10.4M and is now below zero. 40acres kept 95% of its peak.</p>
   </div>
 
   <div class="tablecard">
@@ -399,13 +399,13 @@ TEMPLATE = """<!doctype html>
   </div>
 
   <h3>2 · Twelve months is the allowance; three is the useful deadline</h3>
-  <p class="measure">Every grant in this season was approved between 2 October and 17 December
+  <p class="measure">Every grant in this season was approved between 12 September and 17 December
   2025. Teams had about a year to run the work end to end. A year on, several approved grants
   still have nothing to show, while the ones that delivered did not need the year. From the
   application going in to the first day of incentives the median was <strong>71 days</strong>, and
   the team's own step had a median of 15. Each stage below is the median of its own distribution,
-  so the three do not sum to the 71 in the last row. Each row is a separate ranking of the same
-  nine grants.</p>
+  so the three do not sum to the 71 in the last row. The rows cover the same nine grants. A negative figure
+  means incentives began before the OP reached the claim contract.</p>
   <div class="tablewrap"><table>
     <thead><tr><th>Stage</th><th class="num">Median</th><th class="num">Range</th></tr></thead>
     <tbody>
@@ -420,17 +420,21 @@ TEMPLATE = """<!doctype html>
   41 report</a> on Sep 12, OP delivered to the claim contract Sep 30, claimed Oct 7, distribution
   started Oct 15, program finished Jan 27, 2026. That is 51
   days from application to launch, and the best result in the cohort. At the other end, Curve
-  Lending took 218. <strong>Give three months from approval to launch, not twelve</strong>, with a
+  Lending took 218 days. <strong>Give three months from approval to launch, not twelve</strong>, with a
   deadline for the final report. Count the disbursement inside those three months, since it
   took as long as the review itself.</p>
 
   <h3>3 · The extra weeks bought decay, not liquidity</h3>
-  <p class="measure">Programs ran a median of 16.6 weeks, from 9 to 31. But the peak landed at a
+  <p class="measure">Across all nine programs, including the two still running, the median length was 16.6 weeks, from 9 to 31. But the peak landed at a
   median of <strong>day 56, week eight</strong>, and it did not move later in the longer programs
   (the Spearman rank correlation between a program's length and the day it peaked is −0.10, i.e.
   none; Pearson on the same pairs gives −0.13, which says the same thing). Eight of
   the nine peaked inside twelve weeks. What the longer windows added was the decline after the
   peak, not more liquidity.</p>
+  <p class="measure">Two of the nine are still running, so their length is set by the cutoff and
+  not by the program. On the seven that closed, the median length is 14.9 weeks, from 9 to 30. The
+  peak still lands at a median of day 56, six of the seven peaked inside twelve weeks, and the
+  Spearman correlation is −0.21, which with seven points is no more distinguishable from none.</p>
   <p class="measure"><strong>So: set a fixed duration of about twelve weeks, with a review at week
   eight</strong>, where the median program topped out. Extend only on evidence that liquidity
   is still climbing. Nine programs cannot prove an optimal length, and the sample says nothing
@@ -511,8 +515,8 @@ TEMPLATE = """<!doctype html>
   for two reasons. For the seven finished programs the line continues 30 days past the incentive
   end, so its last point is a later date than the one the table reports. And for Velodrome the
   daily series is rebuilt from Dune token transfers, which do not cover Soneium: the line therefore
-  excludes $62,904 of ΔTVL that the table includes, because the table is measured by direct
-  on-chain reads across every chain in scope. Where the two differ, the table is the measurement
+  leaves out Soneium, which contributes −$62,904 to the table's ΔTVL, because the table is measured
+  by direct on-chain reads across every chain in scope. Where the two differ, the table is the measurement
   and the line is the shape. The dotted rule marks the day the incentive stopped, and the shaded band after it is
   the following 30 days. It shows what the liquidity did once the rewards ended, and it never
   counts toward the peak. The two interim programs have no band: their window is still
@@ -539,9 +543,9 @@ TEMPLATE = """<!doctype html>
     <ul>
       <li><strong>This is an observation, not an attribution.</strong> The figures say what the liquidity in each grant's own contracts did while the incentives ran. They do not separate out how much of that the incentive caused, which would need a model of what would have arrived anyway. That is a different exercise, and this review does not attempt it.</li>
       <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized. The formula is the one in the <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>.</li>
-      <li><strong>The window here is not the official one.</strong> The S8 methodology opens the window at grant delivery and closes it at the earlier of the incentive close and the season close. This review opens it on the first day incentives were actually paid and closes it on the last, because delivery ran a median of 15 days ahead of the first day of incentives here, and as much as 136 for Curve Lending, so counting from delivery would charge a program with liquidity it was not yet paying for. The two interim programs are then read at a {cutoff} cutoff, which is after the season close. Both choices move the figures, and both are stated so anyone can recompute with the official window instead.</li>
+      <li><strong>The window here is not the official one.</strong> The S8 methodology opens the window at the date of actual grant delivery and closes it at the earlier of the incentive close and the end of Season 8, which the <a href="https://gov.optimism.io/t/guide-to-season-8/10001">Guide to Season 8</a> gives as 24 December 2025. This review opens it on the first day incentives were actually paid and closes it on the last, with no season cap. Both choices move the figures. Opening at delivery would count time before a program was paying for liquidity: delivery ran a median of 15 days ahead of the first incentive day here, and 136 days ahead for Curve Lending. The cap is the larger difference. All nine incentive windows ended after 24 December 2025, and Velodrome and Curve Lending began after it, so applying the cap would cut every program short and leave those two with no incentive days inside the window. The two programs still running are read at the {cutoff} cutoff. The daily series behind each figure are in the repository, so the same measurement can be run over the official window.</li>
       <li><strong>Scope is targeted, contract by contract, not protocol-wide.</strong> Each grant named the contracts it would incentivize, and only those are measured. A protocol's headline TVL moves for reasons that have nothing to do with a grant, so counting all of it would credit or blame a program for liquidity it never touched. The cost of this choice is that it misses any spillover into the rest of the protocol. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
-      <li><strong>Quantities are valued at one fixed date, not at each day's price.</strong> The point is to count liquidity added, not the token market moving underneath it. Valuing every day at that day's price mixes the two, which is why, across the eight grants with a price breakdown, a dashboard reading of the same contracts falls $5.62M over the same period while this measure rises $7.97M. Neither number is wrong; they answer different questions.</li>
+      <li><strong>Quantities are valued at one fixed date, not at each day's price.</strong> The point is to count liquidity added, not the token market moving underneath it. Valuing every day at that day's price mixes the two, which is why, across the eight grants with a price breakdown, the same contracts valued at each day's price fall $5.62M over the same period while this measure rises $7.97M. Neither number is wrong; they answer different questions.</li>
       <li><strong>A milestone counts as met if the target was reached on any day inside the window.</strong> A single-date checkpoint cannot tell a program that hit its target and lost the liquidity apart from one that never came close. Both readings are kept, and they agree: the best 7-day average gives the same verdicts, so these were levels held for weeks.</li>
       <li><strong>The peak is the highest day inside the incentive window.</strong> The 30 days drawn after each window are shown so the decline is visible, but they never count toward the peak or the closing figure, because the program was no longer paying for that liquidity.</li>
       <li><strong>Which grants this covers.</strong> The Council approved <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">24 applications</a> on final review across Season 8, spending the full 6.29M OP budget. This review measures the <strong>nine</strong> of those that claimed their OP and ran an incentive program that could be measured on-chain. The other fifteen are counted in the OP figures but have no ΔTVL.</li>
@@ -553,7 +557,7 @@ TEMPLATE = """<!doctype html>
     <ul>
       <li><strong>Claims.</strong> Read on Blockscout from the <a href="https://optimism.blockscout.com/address/0x8A2725a6f04816A5274dDD9FEaDd3bd0C253C1A6">Hedgey ClaimCampaigns contract</a> the council paid into, and the <a href="https://optimism.blockscout.com/address/0xC0603610C7F923c93b18B48eF63F0d733CB8C89e">Safe</a> that administered the campaigns. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
       <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first, and the grantee claims it from there. The registry's delivery date is that first transfer, not the approval.</li>
-      <li><strong>Approval dates record a status change, not always the decision.</strong> Application and approval dates come from Karma, which is per-application rather than per-cycle. But Karma stores the day someone moved the record, and that can trail the decision by weeks: 40acres is a cycle 41 grant, and the <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">Cycle 41 report</a> of 12 September already lists it as passed, yet Karma did not flip it until 2 October. Left uncorrected, the grant is approved two days after its OP had already reached the claim contract. This page uses the cycle 41 date for 40acres and Karma's own date for the rest. Curve Lending also shows a later Karma date than its cycle, but its cycle 42 entry is a conditional pass pending confirmation, so there the later date is the more likely one and it is kept. The four stage medians are the same under either choice; only 40acres' own split and the approved-to-claim range move.</li>
+      <li><strong>Approval dates come from Karma, with one correction.</strong> Application and approval dates are Karma's own records for each application. One of them is later than the Council's own announcement. 40acres is a cycle 41 grant, and the <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">Cycle 41 report</a> of 12 September already lists it as passed, yet Karma's status changed on 2 October. Left as recorded, the grant would be approved two days after its OP reached the claim contract. This page uses 12 September for 40acres and Karma's date for every other grant. Curve Lending also has a Karma date (16 October) later than its cycle's report (2 October), but that report lists it as a conditional pass pending confirmation, so the later date is kept. The four stage medians are the same either way. Only 40acres' own split and the approved-to-claim range change.</li>
       <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time, and I did not find a way to verify how much was actually deployed. There may well be one. I did not pursue it.</li>
     </ul>
   </div>
@@ -570,7 +574,7 @@ TEMPLATE = """<!doctype html>
       Aerodrome VotingEscrow veNFTs, and Curve LlamaLend. Function selectors and event topics were
       derived with keccak from signatures verified in each protocol's source, never copied from
       memory.</li>
-      <li><strong>Dune (DuneSQL / Trino):</strong> five saved queries rebuild daily balances from
+      <li><strong>Dune (DuneSQL / Trino):</strong> six saved queries rebuild daily balances from
       token transfers and from pool-manager and VotingEscrow events, where a daily on-chain read
       would have been too slow.</li>
       <li><strong>DefiLlama:</strong> protocol TVL series and historical token prices, including the
@@ -612,8 +616,8 @@ TEMPLATE = """<!doctype html>
     <svg width="14" height="14" viewBox="0 0 100 100" aria-hidden="true"><path d="{mark}" fill="{c[coral]}" fill-rule="evenodd"/></svg>
     <span class="label">© 2026 Bricia Guzmán · Compliance &amp; Verification</span>
   </div>
-  <p class="small" style="margin-top:8px">Optimism Season 8 growth grants · measured {generated} ·
-  interim programs frozen at {cutoff}.</p>
+  <p class="small" style="margin-top:8px">Optimism Season 8 growth grants · data through {cutoff} ·
+  page built {generated}.</p>
 </footer>
 
 </div>
