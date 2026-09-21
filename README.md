@@ -146,8 +146,10 @@ python scripts/cohort_summary.py     # -> reports/cohort.json + reports/cohort.c
 Derives everything the general report quotes about the cohort — totals, $/OP,
 M1/M2 counts under the peak rule and under a best-7-day-average variant,
 program length, when the peak came, share of the peak given back,
-approval-to-start lag — from the committed outputs plus the registry's budgets,
-targets and dates. Per-grantee records include the in-window daily curve, so
+approval-to-start lag — from the committed outputs, the registry's budgets,
+targets and dates, and `data/karma_dates.json` (application and approval dates,
+committed so the timing figures reproduce; refresh it with
+`scripts/karma_dates.py`, which needs `KARMA_API_KEY`). Per-grantee records include the in-window daily curve, so
 charts can be drawn from this one file.
 
 ### Publishing to a website
@@ -219,6 +221,7 @@ scripts/cohort_summary.py     reports/cohort.{json,csv} — the general report's
 scripts/export_site_json.py   output/ → site/data/grantees.json
 scripts/dune/*.sql            the Dune queries behind data/dune/*.csv
 data/rpc_cache.json           RPC response cache (ignored; ~150 MB; never run two writers at once)
+data/karma_dates.json         Karma application and approval dates (committed; dates and statuses only)
 data/dune/, data/rpc_daily/   committed event exports and daily quantities
 ```
 
