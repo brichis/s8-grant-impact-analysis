@@ -322,14 +322,16 @@ TEMPLATE = """<!doctype html>
     <p style="margin:0 0 10px"><strong>What this measures, and what it does not.</strong> Every
     figure here is an observation, not an attribution. It is the change in TVL inside the contracts
     each grant said it would incentivize, between the first and last day of its incentive window,
-    with quantities valued at one fixed date. There is no counterfactual: nothing here shows what
-    those contracts would have done without the OP, and no part of the movement is attributed to
-    the incentive.</p>
-    <p style="margin:0">A different method gives a different number, and that is the point. The
-    Optimism Collective's own <a href="https://gov.optimism.io/t/s8-grants-council-impact-analysis/10584">OSO
-    analysis</a> applied an attribution model to a partly overlapping set of projects and reported
-    roughly $3M of attribution-adjusted TVL. Read the $8.00M below as "this much liquidity moved in
-    the contracts that were paid to attract it", not as "the OP produced this much".</p>
+    with quantities valued at one fixed date.</p>
+    <p style="margin:0 0 10px">There is no counterfactual. Nothing here shows what those contracts
+    would have done without the OP, and no part of the movement is attributed to the incentive.
+    Doing that would mean modelling what liquidity would have arrived anyway, and the assumptions
+    that model needs cannot be verified from outside the protocols. So the choice here was to
+    measure only what can be read from the chain and to say so, rather than to publish an
+    attributed number that looks more precise than the evidence behind it.</p>
+    <p style="margin:0">Read the $8.00M below as "this much liquidity moved in the contracts that
+    were paid to attract it", not as "the OP produced this much". <a href="#method">The method
+    section</a> sets out every other decision and why it was taken.</p>
   </div>
   <div class="measure">
     <ul>
@@ -539,13 +541,26 @@ TEMPLATE = """<!doctype html>
   payment data here is first-hand up to the point the councils were dissolved. That is a
   disclosure, not a claim of neutrality: everything above is reproducible from the sources named,
   and the <a href="{repo}">full pipeline is public</a> if you want to check any of it.</p>
+  <h3>The decisions behind the figures, and why</h3>
+  <p class="measure">Each of these is a choice, and each one moves the numbers. They are listed so
+  that anyone who would have chosen differently can see exactly where the difference enters and
+  recompute from the same measurements.</p>
   <div class="measure">
     <ul>
+      <li><strong>This is an observation, not an attribution.</strong> The figures say what the liquidity in each grant's own contracts did during its incentive window. They do not say the incentive caused it. Attribution would mean modelling the liquidity that would have arrived anyway, and those assumptions cannot be checked from outside the protocols, so none is applied here.</li>
       <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized. The formula is the one in the <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>.</li>
       <li><strong>The window here is not the official one.</strong> The S8 methodology opens the window at grant delivery and closes it at the earlier of the incentive close and the season close. This review opens it on the first day incentives were actually paid and closes it on the last, because delivery ran a median of 15 days ahead of the first day of incentives here, and as much as 136 for Curve Lending, so counting from delivery would charge a program with liquidity it was not yet paying for. The two interim programs are then read at a {cutoff} cutoff, which is after the season close. Both choices move the figures, and both are stated so anyone can recompute with the official window instead.</li>
-      <li><strong>Scope.</strong> Targeted, contract by contract. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
-      <li><strong>Which grants this covers.</strong> The Council approved <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">24 applications</a> on final review across Season 8, spending the full 6.29M OP budget. This review measures the <strong>nine</strong> of those that claimed their OP and ran an incentive program that could be measured on-chain. The other fifteen are counted in the OP figures but have no ΔTVL. OSO's earlier analysis counted 23 projects, before the final cycle closed the roster at 24.</li>
+      <li><strong>Scope is targeted, contract by contract, not protocol-wide.</strong> Each grant named the contracts it would incentivize, and only those are measured. A protocol's headline TVL moves for reasons that have nothing to do with a grant, so counting all of it would credit or blame a program for liquidity it never touched. The cost of this choice is that it misses any spillover into the rest of the protocol. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
+      <li><strong>Quantities are valued at one fixed date, not at each day's price.</strong> The point is to count liquidity added, not the token market moving underneath it. Valuing every day at that day's price mixes the two, which is why, across the eight grants with a price breakdown, a dashboard reading of the same contracts falls $5.62M over the same period while this measure rises $7.97M. Neither number is wrong; they answer different questions.</li>
+      <li><strong>A milestone counts as met if the target was reached on any day inside the window.</strong> A single-date checkpoint cannot tell a program that hit its target and lost the liquidity apart from one that never came close. Both readings are kept, and they agree: the best 7-day average gives the same verdicts, so these were levels held for weeks.</li>
+      <li><strong>The peak is the highest day inside the incentive window.</strong> The 30 days drawn after each window are shown so the decline is visible, but they never count toward the peak or the closing figure, because the program was no longer paying for that liquidity.</li>
+      <li><strong>Which grants this covers.</strong> The Council approved <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">24 applications</a> on final review across Season 8, spending the full 6.29M OP budget. This review measures the <strong>nine</strong> of those that claimed their OP and ran an incentive program that could be measured on-chain. The other fifteen are counted in the OP figures but have no ΔTVL.</li>
       <li><strong>Two programs are censored, not finished.</strong> Curve Lending and Velodrome have no announced end date. Their figures are a reading taken at the {cutoff} cutoff, with the incentives still running, so their ΔTVL, peak and retention are not comparable to the seven that closed. They are marked interim throughout.</li>
+    </ul>
+  </div>
+  <h3>What the records can and cannot show</h3>
+  <div class="measure">
+    <ul>
       <li><strong>Claims.</strong> Read on Blockscout from the <a href="https://optimism.blockscout.com/address/0x8A2725a6f04816A5274dDD9FEaDd3bd0C253C1A6">Hedgey ClaimCampaigns contract</a> the council paid into, and the <a href="https://optimism.blockscout.com/address/0xC0603610C7F923c93b18B48eF63F0d733CB8C89e">Safe</a> that administered the campaigns. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
       <li><strong>Delivered is not claimed.</strong> OP goes to a Hedgey claim contract first, and the grantee claims it from there. The registry's delivery date is that first transfer, not the approval.</li>
       <li><strong>The approval date is a cycle date, not a decision date.</strong> Application dates come from Karma. Approval dates are the day the Council's cycle report announcing the grant was published, which is the earliest public evidence of the decision; the decision itself may have been taken days earlier. Karma's own approval field clusters on three dates because it records the cycle, not the case, and it files 40acres under Cycle 42 although the <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">Cycle 41 report</a> already listed it as passed. This page uses the Cycle 41 date for 40acres. The four stage medians are unchanged either way; only 40acres' own split and the approved-to-claim range move.</li>
@@ -598,7 +613,7 @@ TEMPLATE = """<!doctype html>
       <li><strong>Code and measurements.</strong> The <a href="{repo}">pipeline repository</a>, including the per-grantee measurements in <code>output/</code> and <code>data/</code>, the Dune queries under <code>scripts/dune/</code>, and <a href="{blob}/scripts/cohort_summary.py"><code>cohort_summary.py</code></a>, which turns them into every figure on this page.</li>
       <li><strong>Council decisions and budget.</strong> The Season 8 cycle reports: <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">41</a>, <a href="https://gov.optimism.io/t/cycle-42-grants-report/10308">42</a>, <a href="https://gov.optimism.io/t/cycle-43-grants-council-report/10363">43</a>, <a href="https://gov.optimism.io/t/cycle-44-grants-report/10410">44</a> and the <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">Cycle 46 and Season 8 final report</a>, which together account for all 24 approvals and the full 6.29M OP.</li>
       <li><strong>Payments.</strong> The Foundation's <a href="https://docs.google.com/spreadsheets/d/1Ul8iMTsOFUKUmqz6MK0zpgt8Ki8tFtoWKGlwXj-Op34/edit">public delivery tracker</a>, cross-checked on-chain.</li>
-      <li><strong>Method.</strong> The <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>, and <a href="https://gov.optimism.io/t/s8-grants-council-impact-analysis/10584">OSO's impact analysis</a> for a different approach to the same season.</li>
+      <li><strong>Method.</strong> The <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>, whose formula this review uses and whose window it does not; the difference is set out above.</li>
       <li><strong>Council dissolution.</strong> The <a href="https://vote.optimism.io/proposals/94653586928704829987664319556957069435634532914401865187521227109996000544034">Milestones and Metrics Council</a> and <a href="https://vote.optimism.io/proposals/17610825935142917870367542494361266033681870435033393450622576978064079317264">Grants Council</a> dissolution proposals, both approved 15 July 2026.</li>
     </ul>
   </div>
