@@ -1,0 +1,686 @@
+{
+ "APP-0A6ZP40D-82XHOP": {
+  "approved_at": "2025-10-02",
+  "created": "2025-08-21",
+  "cycle": "42",
+  "grantee": "Super DCA",
+  "pending_at": "2025-08-21",
+  "project": "Super DCA",
+  "reference": "APP-0A6ZP40D-82XHOP",
+  "rejected_at": null,
+  "revision_requested_at": "2025-09-02",
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-08-21T16:25:01.650Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-08-25T10:44:51.527Z"
+   },
+   {
+    "status": "revision_requested",
+    "timestamp": "2025-09-02T13:50:35.970Z"
+   },
+   {
+    "status": "pending",
+    "timestamp": "2025-09-02T15:21:37.050Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-02T13:58:10.836Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-02T14:02:21.365Z"
+   }
+  ],
+  "under_review_at": "2025-08-25"
+ },
+ "APP-23YE2TW4-HVI82T": {
+  "approved_at": "2025-10-16",
+  "created": "2025-08-26",
+  "cycle": "43",
+  "grantee": "Strands",
+  "pending_at": "2025-08-26",
+  "project": "Strands",
+  "reference": "APP-23YE2TW4-HVI82T",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-08-26T17:38:49.921Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-16T13:53:53.208Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-16T13:53:56.716Z"
+   }
+  ],
+  "under_review_at": "2025-10-16"
+ },
+ "APP-26Y3A1CE-ORWVH6": {
+  "approved_at": "2025-10-16",
+  "created": "2025-09-01",
+  "cycle": "43",
+  "grantee": "YieldFi",
+  "pending_at": "2025-09-01",
+  "project": "YieldFi",
+  "reference": "APP-26Y3A1CE-ORWVH6",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-09-01T14:20:07.284Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-16T13:58:27.075Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-16T13:58:42.589Z"
+   }
+  ],
+  "under_review_at": "2025-10-16"
+ },
+ "APP-2KLX3FN8-D2ZTTU": {
+  "approved_at": "2025-11-13",
+  "created": "2025-10-07",
+  "cycle": "44",
+  "grantee": "NEUS Network",
+  "pending_at": "2025-10-07",
+  "project": "NEUS Network",
+  "reference": "APP-2KLX3FN8-D2ZTTU",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-10-07T04:59:35.687Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-11-13T21:37:47.339Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-11-13T21:37:52.131Z"
+   }
+  ],
+  "under_review_at": "2025-11-13"
+ },
+ "APP-3S22LRYW-HHABVN": {
+  "approved_at": "2025-10-16",
+  "created": "2025-08-30",
+  "cycle": "43",
+  "grantee": "\u064eQuintes",
+  "pending_at": "2025-08-30",
+  "project": "\u064eQuintes",
+  "reference": "APP-3S22LRYW-HHABVN",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-08-30T02:01:09.194Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-16T13:55:29.734Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-16T13:55:33.965Z"
+   }
+  ],
+  "under_review_at": "2025-10-16"
+ },
+ "APP-45IYMH9L-PJU5AX": {
+  "approved_at": "2025-10-02",
+  "created": "2025-09-12",
+  "cycle": "42",
+  "grantee": "Truemarkets",
+  "pending_at": "2025-09-12",
+  "project": "Truemarkets",
+  "reference": "APP-45IYMH9L-PJU5AX",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-09-12T13:21:43.752Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-02T14:05:11.749Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-02T14:05:18.927Z"
+   }
+  ],
+  "under_review_at": "2025-10-02"
+ },
+ "APP-61MKC5AZ-TFCR6F": {
+  "approved_at": "2025-10-02",
+  "created": "2025-09-17",
+  "cycle": "42",
+  "grantee": "PancakeSwap",
+  "pending_at": "2025-09-17",
+  "project": "PancakeSwap",
+  "reference": "APP-61MKC5AZ-TFCR6F",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-09-17T11:18:51.114Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-02T14:05:50.329Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-02T14:05:54.754Z"
+   }
+  ],
+  "under_review_at": "2025-10-02"
+ },
+ "APP-A2ZTXRTP-HHT7U9": {
+  "approved_at": "2025-12-17",
+  "created": "2025-12-05",
+  "cycle": "46",
+  "grantee": "PagCrypto",
+  "pending_at": "2025-12-05",
+  "project": "PagCrypto",
+  "reference": "APP-A2ZTXRTP-HHT7U9",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-12-05T21:44:17.751Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-12-17T17:40:24.833Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-12-17T17:41:16.423Z"
+   }
+  ],
+  "under_review_at": "2025-12-17"
+ },
+ "APP-ADR4SDTF-LR8N60": {
+  "approved_at": "2025-11-13",
+  "created": "2025-08-29",
+  "cycle": "44",
+  "grantee": "Lido",
+  "pending_at": "2025-08-29",
+  "project": "Lido",
+  "reference": "APP-ADR4SDTF-LR8N60",
+  "rejected_at": null,
+  "revision_requested_at": "2025-09-03",
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-08-29T09:05:05.974Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-09-03T15:42:23.436Z"
+   },
+   {
+    "status": "revision_requested",
+    "timestamp": "2025-09-03T15:42:49.285Z"
+   },
+   {
+    "status": "pending",
+    "timestamp": "2025-11-13T13:36:08.768Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-11-13T21:35:12.029Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-11-13T21:37:06.995Z"
+   }
+  ],
+  "under_review_at": "2025-09-03"
+ },
+ "APP-C7O5W7RK-ZGIGFO": {
+  "approved_at": "2025-10-16",
+  "created": "2025-09-26",
+  "cycle": "43",
+  "grantee": "Spicenet",
+  "pending_at": "2025-09-26",
+  "project": "Spicenet",
+  "reference": "APP-C7O5W7RK-ZGIGFO",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-09-26T20:43:06.669Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-16T14:05:24.830Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-16T14:05:30.337Z"
+   }
+  ],
+  "under_review_at": "2025-10-16"
+ },
+ "APP-CS0S7GDN-MR3JI7": {
+  "approved_at": "2025-10-02",
+  "created": "2025-08-25",
+  "cycle": "41",
+  "grantee": "40acres.finance",
+  "pending_at": "2025-08-25",
+  "project": "40acres.finance",
+  "reference": "APP-CS0S7GDN-MR3JI7",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-08-25T22:48:03.688Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-09-06T00:59:05.086Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-02T14:03:31.611Z"
+   }
+  ],
+  "under_review_at": "2025-09-06"
+ },
+ "APP-CW47IDWE-KMO9I4": {
+  "approved_at": "2025-12-01",
+  "created": "2025-09-03",
+  "cycle": "44",
+  "grantee": "Superset",
+  "pending_at": "2025-09-03",
+  "project": "Superset",
+  "reference": "APP-CW47IDWE-KMO9I4",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-09-03T12:38:58.544Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-12-01T15:35:47.983Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-12-01T15:36:00.963Z"
+   }
+  ],
+  "under_review_at": "2025-12-01"
+ },
+ "APP-G9WUXGJ2-124YX2": {
+  "approved_at": "2025-12-17",
+  "created": "2025-11-24",
+  "cycle": "46",
+  "grantee": "LiqPass \u2013 Parametric Liquidation Protection for High-Leverage Traders",
+  "pending_at": "2025-11-24",
+  "project": "LiqPass \u2013 Parametric Liquidation Protection for High-Leverage Traders",
+  "reference": "APP-G9WUXGJ2-124YX2",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-11-24T01:35:58.188Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-12-17T17:37:18.137Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-12-17T17:37:33.542Z"
+   }
+  ],
+  "under_review_at": "2025-12-17"
+ },
+ "APP-HR94I78E-LGNYW7": {
+  "approved_at": "2025-12-17",
+  "created": "2025-12-01",
+  "cycle": "46",
+  "grantee": "Precog",
+  "pending_at": "2025-12-01",
+  "project": "Precog",
+  "reference": "APP-HR94I78E-LGNYW7",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-12-01T05:25:33.828Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-12-17T17:40:20.105Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-12-17T17:41:37.801Z"
+   }
+  ],
+  "under_review_at": "2025-12-17"
+ },
+ "APP-HX8QVFXW-RXYI7I": {
+  "approved_at": "2025-10-16",
+  "created": "2025-09-05",
+  "cycle": "43",
+  "grantee": "Hydrex",
+  "pending_at": "2025-09-05",
+  "project": "Hydrex",
+  "reference": "APP-HX8QVFXW-RXYI7I",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-09-05T21:30:48.047Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-16T13:52:42.743Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-16T13:52:47.031Z"
+   }
+  ],
+  "under_review_at": "2025-10-16"
+ },
+ "APP-I1TJYA5M-XIRWVL": {
+  "approved_at": "2025-11-13",
+  "created": "2025-10-21",
+  "cycle": "44",
+  "grantee": "Limitless",
+  "pending_at": "2025-10-21",
+  "project": "Limitless",
+  "reference": "APP-I1TJYA5M-XIRWVL",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-10-21T09:57:06.483Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-11-13T21:38:07.175Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-11-13T21:38:10.711Z"
+   }
+  ],
+  "under_review_at": "2025-11-13"
+ },
+ "APP-JKZMI45A-QYZ3NG": {
+  "approved_at": "2025-12-17",
+  "created": "2025-12-05",
+  "cycle": "46",
+  "grantee": "openOracle",
+  "pending_at": "2025-12-05",
+  "project": "openOracle",
+  "reference": "APP-JKZMI45A-QYZ3NG",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-12-05T13:57:55.008Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-12-17T17:40:27.481Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-12-17T17:40:52.231Z"
+   }
+  ],
+  "under_review_at": "2025-12-17"
+ },
+ "APP-LZT0D77C-HTHMFT": {
+  "approved_at": "2025-12-17",
+  "created": "2025-12-01",
+  "cycle": "46",
+  "grantee": "Velodrome Finance",
+  "pending_at": "2025-12-01",
+  "project": "Velodrome Finance",
+  "reference": "APP-LZT0D77C-HTHMFT",
+  "rejected_at": null,
+  "revision_requested_at": "2025-12-17",
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-12-01T14:55:32.696Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-12-17T17:31:34.488Z"
+   },
+   {
+    "status": "revision_requested",
+    "timestamp": "2025-12-17T17:32:18.641Z"
+   },
+   {
+    "status": "pending",
+    "timestamp": "2025-12-17T17:33:37.636Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-12-17T17:34:29.762Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-12-17T17:36:39.249Z"
+   }
+  ],
+  "under_review_at": "2025-12-17"
+ },
+ "APP-OC0PQ0BP-0PQURZ": {
+  "approved_at": "2025-12-17",
+  "created": "2025-11-27",
+  "cycle": "46",
+  "grantee": "Morpho",
+  "pending_at": "2025-11-27",
+  "project": "Morpho",
+  "reference": "APP-OC0PQ0BP-0PQURZ",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-11-27T06:52:23.580Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-12-17T17:37:58.596Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-12-17T17:38:32.920Z"
+   }
+  ],
+  "under_review_at": "2025-12-17"
+ },
+ "APP-ODZDTQFJ-QTLS4P": {
+  "approved_at": "2025-11-13",
+  "created": "2025-09-16",
+  "cycle": "44",
+  "grantee": "Renzo Protocol",
+  "pending_at": "2025-09-16",
+  "project": "Renzo Protocol",
+  "reference": "APP-ODZDTQFJ-QTLS4P",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-09-16T22:26:23.330Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-11-13T21:37:58.961Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-11-13T21:38:02.496Z"
+   }
+  ],
+  "under_review_at": "2025-11-13"
+ },
+ "APP-PZ9Y02P7-UXJ2W4": {
+  "approved_at": "2025-10-16",
+  "created": "2025-08-25",
+  "cycle": "43",
+  "grantee": "Extrafi",
+  "pending_at": "2025-08-25",
+  "project": "Extrafi",
+  "reference": "APP-PZ9Y02P7-UXJ2W4",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-08-25T16:24:36.830Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-16T13:49:59.468Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-16T13:50:04.521Z"
+   }
+  ],
+  "under_review_at": "2025-10-16"
+ },
+ "APP-RMFNN0IH-NM93BQ": {
+  "approved_at": "2025-10-16",
+  "created": "2025-10-01",
+  "cycle": "43",
+  "grantee": "Tydro \u2014 Ink x Optimism Money Market",
+  "pending_at": "2025-10-01",
+  "project": "Tydro \u2014 Ink x Optimism Money Market",
+  "reference": "APP-RMFNN0IH-NM93BQ",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-10-01T18:23:08.923Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-16T14:04:29.929Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-16T14:04:34.932Z"
+   }
+  ],
+  "under_review_at": "2025-10-16"
+ },
+ "APP-SJI1PDNL-Z0UTM9": {
+  "approved_at": "2025-10-16",
+  "created": "2025-09-11",
+  "cycle": "43",
+  "grantee": "Oku (Optimism User Acquisition)",
+  "pending_at": "2025-09-11",
+  "project": "Oku (Optimism User Acquisition)",
+  "reference": "APP-SJI1PDNL-Z0UTM9",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-09-11T18:20:39.198Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-16T14:01:49.839Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-16T14:01:54.740Z"
+   }
+  ],
+  "under_review_at": "2025-10-16"
+ },
+ "APP-VZLIY6MC-SQDRNT": {
+  "approved_at": "2025-10-16",
+  "created": "2025-09-11",
+  "cycle": "42",
+  "grantee": "Curve Lending",
+  "pending_at": "2025-09-11",
+  "project": "Curve Lending",
+  "reference": "APP-VZLIY6MC-SQDRNT",
+  "rejected_at": null,
+  "revision_requested_at": null,
+  "status": "approved",
+  "status_history": [
+   {
+    "status": "pending",
+    "timestamp": "2025-09-11T07:28:55.975Z"
+   },
+   {
+    "status": "under_review",
+    "timestamp": "2025-10-16T13:48:52.927Z"
+   },
+   {
+    "status": "approved",
+    "timestamp": "2025-10-16T13:48:59.280Z"
+   }
+  ],
+  "under_review_at": "2025-10-16"
+ }
+}

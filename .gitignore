@@ -3,5 +3,9 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+# Large caches and provider dumps stay local...
 data/*.json
+# ...but this one is 16 KB of dates and statuses, and the timing figures cannot be
+# reproduced without it. karma_dates.py keeps no email, address or free text.
+!data/karma_dates.json
 !data/.gitkeep
