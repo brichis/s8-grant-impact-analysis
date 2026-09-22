@@ -3,7 +3,7 @@
 
 Same data as the Markdown draft — reports/cohort.json, written by
 cohort_summary.py — rendered as a standalone HTML page with its charts, meant
-to be dropped into the website repo under public/reportes/ and shown in an
+to be dropped into the website repo under public/reports/ and shown in an
 iframe. Nothing is measured or recomputed here: every number and every series
 comes from the committed measurements, so the page can't drift from the
 pipeline.
@@ -601,7 +601,7 @@ TEMPLATE = """<!doctype html>
     <summary>How it was built</summary>
     <div class="measure">
     <ul>
-      <li><strong>Built with Claude.</strong> I used Claude Design for my brand's design system, to shape the first approaches and to choose the tools, and <a href="https://claude.com/claude-code">Claude Code</a> for the code, the charts, this report and the audits. The repository and the history of every change are on <a href="{repo}">GitHub</a>.</li>
+      <li><strong>Built with Claude.</strong> I used Claude Design for my brand's design system, Claude Chat to shape the first approaches and to choose the tools, and <a href="https://claude.com/claude-code">Claude Code</a> for the code, the charts, this report and the audits.</li>
       <li><strong>On-chain reads:</strong> an Alchemy archive node: <code>eth_call</code> at a
       block per checkpoint, <code>eth_getCode</code> to date deployments by binary search,
       <code>eth_getLogs</code> for one-off events and <code>alchemy_getAssetTransfers</code> for
