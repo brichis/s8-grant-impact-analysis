@@ -32,7 +32,8 @@ attribution is 100% for every grant, because the change being measured is
 already the change on the contracts the grant incentivized.
 
 Each contract's token quantity is read directly from chain state at the last
-block of each checkpoint's UTC day, dispatched by the scope `type`:
+block of each checkpoint's day (a day ends at 23:59:59 UTC−6; see *Time
+convention* below), dispatched by the scope `type`:
 
 | type | measurement | status |
 |---|---|---|
@@ -57,6 +58,22 @@ not a placeholder.
 Start = actual grant delivery, but that was flagged as ambiguous in governance
 (GFXlabs, Jan 2026), which recommended anchoring to when execution began. We
 adopt that reading as a deliberate, disclosed choice.
+
+**Time convention: a day ends at 23:59:59 UTC−6.** Every start and end quantity
+is read at the last block on or before that moment, which is 05:59:59 UTC the
+next day, and every daily series is cut at the same boundary. The Dune queries
+do it in SQL (`DATE(block_time - INTERVAL '6' HOUR)`); the Python side does it
+through `measure._end_of_day_ts` and `rpc.block_at`, which returns the last block
+whose timestamp is at or before the moment. UTC−6 is the local time of the
+machine that produced `output/` (Mexico City, which has no daylight saving on any
+date this review covers). A different cut would move each reading by some hours,
+and liquidity can change within a day.
+
+`cohort_summary.py` pins the offset (`CHECKPOINT_TZ`), so the report's OP prices
+reproduce anywhere. `src/measure.py`, `src/prices.py` and
+`scripts/oku_wallet_cohort.py` still take it from the machine's local time zone,
+so **run the measurement scripts under `TZ=America/Mexico_City`** to reproduce
+the committed outputs; in another zone they would read different blocks.
 
 **Still-running grants.** An incentive counts as ongoing when the registry's
 `incentive_end_date` is today or later, **or when it is blank** — the registry's
@@ -147,10 +164,19 @@ Derives everything the general report quotes about the cohort — totals, $/OP,
 M1/M2 counts under the peak rule and under a best-7-day-average variant,
 program length, when the peak came, share of the peak given back,
 approval-to-start lag — from the committed outputs, the registry's budgets,
-targets and dates, and `data/karma_dates.json` (application and approval dates,
+targets and dates, and `data/karma_dates.json` (application dates,
 committed so the timing figures reproduce; refresh it with
 `scripts/karma_dates.py`, which needs `KARMA_API_KEY`). Per-grantee records include the in-window daily curve, so
 charts can be drawn from this one file.
+
+The timing stages use three dates, each with one source. **Application** is
+Karma's creation date. **Approval** is the report of the cycle that announced the
+grant (`CYCLE_APPROVED`; a conditional pass counts from its report). **Delivery**
+is the day the first tranche reached the grantee on-chain: registry `date_tx1`,
+written from Blockscout by the sheet's Apps Script (the claim from the Hedgey
+contract, or a direct payment), with `date_tx2` as the second tranche. The
+registry's `initial_delivery_date` is the tracker's own date; it is carried into
+`cohort.json` as `tracker_delivery_date` for context and feeds no figure.
 
 ### Publishing to a website
 
@@ -221,7 +247,7 @@ scripts/cohort_summary.py     reports/cohort.{json,csv} — the general report's
 scripts/export_site_json.py   output/ → site/data/grantees.json
 scripts/dune/*.sql            the Dune queries behind data/dune/*.csv
 data/rpc_cache.json           RPC response cache (ignored; ~150 MB; never run two writers at once)
-data/karma_dates.json         Karma application and approval dates (committed; dates and statuses only)
+data/karma_dates.json         Karma application dates (committed; dates and statuses only)
 data/dune/, data/rpc_daily/   committed event exports and daily quantities
 ```
 
