@@ -178,6 +178,48 @@ contract, or a direct payment), with `date_tx2` as the second tranche. The
 registry's `initial_delivery_date` is the tracker's own date; it is carried into
 `cohort.json` as `tracker_delivery_date` for context and feeds no figure.
 
+### Publishing the report page
+
+The report is one self-contained HTML file, meant to sit in the website repo under
+`public/reportes/` and be shown in an iframe. Apart from the file itself it loads
+Plotly from jsDelivr and the brand fonts from Google Fonts. (The Next.js app in
+`site/`, described in the next section, is a separate thing.)
+
+Build it:
+
+```bash
+python scripts/cohort_summary.py     # -> reports/cohort.json
+python scripts/report_html.py        # -> reports/s8_report.html
+```
+
+`cohort_summary.py` reads the registry sheet, the committed outputs and DefiLlama.
+`report_html.py` reads only `reports/cohort.json` and a price cache,
+`reports/op_price_daily.json`, which it refetches from DefiLlama when it is missing
+or holds repeated dates; it stops with a message if `cohort.json` is absent. Neither
+step depends on the machine's time zone.
+
+The grantee table, the charts and the timing stages are read from `cohort.json`.
+The other numbers quoted in the prose (the key cards, the price effect, the OP-flow
+blocks in Figure 3, the correlations) are typed into `scripts/report_html.py`, so
+**check them against `reports/cohort.json` after every regeneration.** The header
+says "Data through" the interim cutoff (`registry.INTERIM_CUTOFF`) and the day the
+page was built; if you move the cutoff, re-run both steps.
+
+To publish:
+
+1. Copy `reports/s8_report.html` to the website repo as
+   `public/reportes/s8-growth-grants.html`.
+2. Deploy the website as usual.
+3. Check that the live file is the one you built. The two hashes should match:
+
+   ```bash
+   curl -s https://www.brichis.xyz/reportes/s8-growth-grants.html | shasum -a 256
+   shasum -a 256 reports/s8_report.html
+   ```
+
+   If they differ, compare the text before assuming it is stale: a host can rewrite
+   whitespace without changing what the reader sees.
+
 ### Publishing to a website
 
 The CSVs above are Datawrapper-shaped — one file per chart, display labels as
