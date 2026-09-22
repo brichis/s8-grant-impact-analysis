@@ -32,7 +32,8 @@ attribution is 100% for every grant, because the change being measured is
 already the change on the contracts the grant incentivized.
 
 Each contract's token quantity is read directly from chain state at the last
-block of each checkpoint's UTC day, dispatched by the scope `type`:
+block of each checkpoint's day (a day ends at 23:59:59 UTC−6; see *Time
+convention* below), dispatched by the scope `type`:
 
 | type | measurement | status |
 |---|---|---|
@@ -57,6 +58,22 @@ not a placeholder.
 Start = actual grant delivery, but that was flagged as ambiguous in governance
 (GFXlabs, Jan 2026), which recommended anchoring to when execution began. We
 adopt that reading as a deliberate, disclosed choice.
+
+**Time convention: a day ends at 23:59:59 UTC−6.** Every start and end quantity
+is read at the last block on or before that moment, which is 05:59:59 UTC the
+next day, and every daily series is cut at the same boundary. The Dune queries
+do it in SQL (`DATE(block_time - INTERVAL '6' HOUR)`); the Python side does it
+through `measure._end_of_day_ts` and `rpc.block_at`, which returns the last block
+whose timestamp is at or before the moment. UTC−6 is the local time of the
+machine that produced `output/` (Mexico City, which has no daylight saving on any
+date this review covers). A different cut would move each reading by some hours,
+and liquidity can change within a day.
+
+`cohort_summary.py` pins the offset (`CHECKPOINT_TZ`), so the report's OP prices
+reproduce anywhere. `src/measure.py`, `src/prices.py` and
+`scripts/oku_wallet_cohort.py` still take it from the machine's local time zone,
+so **run the measurement scripts under `TZ=America/Mexico_City`** to reproduce
+the committed outputs; in another zone they would read different blocks.
 
 **Still-running grants.** An incentive counts as ongoing when the registry's
 `incentive_end_date` is today or later, **or when it is blank** — the registry's
