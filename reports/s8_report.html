@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Season 8 Growth Grants — Observed ΔTVL Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --coral: #f98c82; --plum: #2e1b45; --plum-muted: #6b5a80;
+    --orchid: #b341a8; --signal: #e5322c; --lilac: #c6b2e8;
+    --peri: #afbde8; --mint: #7fd6cd; --butter: #f3e3a6;
+    --haze: #faf7fb; --card: #ffffff; --border: #e5ddef; --secondary: #efeaf6;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--haze); }
+  body {
+    margin: 0; background: var(--haze); color: var(--plum);
+    font-family: 'IBM Plex Sans', -apple-system, system-ui, sans-serif;
+    font-size: 17px; line-height: 28px; font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* One column for everything — prose, headings, figures and the table all end
+     on the same two lines. 775px is the reading measure the body text already
+     had; the column carries it now, so nothing sets its own width.
+     `max-width: 68ch` used to resolve differently per element (the lede at 19px
+     came out wider than the callout at 14px), which is why the page had three
+     different widths rather than two. */
+  /* Same rule as brichis.xyz, on the same tokens. The page is served in an
+     iframe, and a parent document's ::selection does not reach into one, so
+     the report has to declare it or selected text falls back to the browser
+     default blue and stops matching the site around it. */
+  ::selection { background: var(--coral); color: var(--plum); }
+
+  .wrap { max-width: 823px; margin: 0 auto; padding: 56px 24px 96px; }
+  .measure { max-width: none; }
+  .label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; line-height: 16px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--orchid); font-weight: 500;
+  }
+  h1 { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 64px;
+       line-height: 60px; letter-spacing: -0.02em; margin: 18px 0 20px; max-width: 18ch; }
+  section[id] { scroll-margin-top: 24px; }
+  h2 { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 44px;
+       line-height: 48px; letter-spacing: -0.01em; margin: 72px 0 8px; }
+  h3 { font-size: 28px; line-height: 34px; font-weight: 500; margin: 44px 0 10px; }
+  h4 { font-size: 17px; line-height: 26px; font-weight: 600; margin: 28px 0 6px; }
+  p { margin: 0 0 18px; }
+  a { color: var(--orchid); text-decoration: underline; text-underline-offset: 3px;
+      text-decoration-thickness: 1px; }
+  a:hover { color: var(--signal); }
+  code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0.88em;
+          background: var(--secondary); border-radius: 5px; padding: 1px 5px; }
+  a code { background: none; padding: 0; color: inherit; }
+  strong { font-weight: 600; }
+  .small { font-size: 14px; line-height: 22px; color: var(--plum-muted); }
+  .lede { font-size: 19px; line-height: 31px; color: var(--plum-muted); }
+  .rule { height: 1px; background: var(--border); border: 0; margin: 0; }
+  header .rule { margin-top: 28px; }
+
+  .keys { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr));
+           margin: 28px 0 8px; }
+  .key { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+          padding: 18px 18px 16px; position: relative; overflow: hidden; }
+  .key::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: var(--accent, var(--coral)); }
+  .key .n { font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 40px; display: block; margin: 6px 0 2px; }
+  .key .t { font-size: 13px; line-height: 19px; color: var(--plum-muted); }
+
+  ul { margin: 0 0 18px; padding-left: 20px; }
+  li { margin-bottom: 8px; }
+  li::marker { color: var(--coral); }
+
+  .fig { background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+          padding: 22px 20px 16px; margin: 28px 0 32px; }
+  .fig .cap { margin-top: 10px; }
+  .chart { width: 100%; }
+
+  /* Hand-built legend: Plotly emits no hover event for its own, and the whole
+     point here is that pointing at a name lights that program's line. */
+  .chartkey { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 10px 0 2px; }
+  .chartkey button {
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+    font-family: inherit; font-size: 12px; line-height: 18px; color: var(--plum-muted);
+    background: var(--card); border: 1px solid var(--border); border-radius: 99px;
+    padding: 4px 11px 4px 8px; transition: color .12s, border-color .12s, background .12s;
+  }
+  .chartkey button .sw { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto;
+                          background: var(--sw); transition: transform .12s; }
+  .chartkey button:hover, .chartkey button:focus-visible { color: var(--plum); border-color: var(--sw); outline: none; }
+  .chartkey button[aria-pressed="true"] { color: var(--plum); border-color: var(--sw); background: var(--haze); }
+  .chartkey button[aria-pressed="true"] .sw { transform: scale(1.25); }
+  .chartkey .hint { font-size: 12px; line-height: 26px; color: var(--plum-muted); }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+
+  .tablewrap { overflow-x: auto; margin: 24px 0 10px; border: 1px solid var(--border);
+                border-radius: 16px; background: var(--card); }
+  /* A table plus the notes that explain it, in one card — the same shape the
+     figures use, where the caption sits inside `.fig` rather than loose under
+     it. The notes live outside `.tablewrap` so they do not scroll sideways
+     with the columns. */
+  .tablecard { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+                margin: 24px 0 10px; overflow: hidden; }
+  .tablecard > .tablewrap { border: 0; border-radius: 0; margin: 0; background: none; }
+  .tablenotes { border-top: 1px solid var(--border); padding: 12px 18px 14px; }
+  .tablenotes p { margin: 0; }
+  .tablenotes p + p { margin-top: 6px; }
+  /* The grantee column stays put while the rest scrolls — eleven columns never
+     fit a phone, and a row of numbers with no name on it says nothing. */
+  th[scope="row"], tfoot th { position: sticky; left: 0; z-index: 1; background: var(--card);
+                               box-shadow: 1px 0 0 var(--border); }
+  thead th:first-child { position: sticky; left: 0; z-index: 2; background: var(--card);
+                          box-shadow: 1px 0 0 var(--border); }
+  /* Shown only when the table really does overflow — which now depends on the
+     column width, not on the breakpoint. Set by script; hidden by default so
+     it never flashes before that runs. */
+  .scrollhint { display: none; }
+  .scrollhint[data-show="1"] { display: block; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; line-height: 19px; }
+  th, td { padding: 10px 11px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table { table-layout: auto; }
+  thead th { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
+              text-transform: uppercase; color: var(--plum-muted); font-weight: 500; }
+  tbody th { font-weight: 500; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.mark { text-align: center; }
+  .met { color: #1f7a5c; font-weight: 600; }
+  .miss { color: var(--plum-muted); }
+  tr.interim th { color: var(--plum); }
+  .tag { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: .1em;
+          text-transform: uppercase; color: var(--plum-muted); background: var(--secondary);
+          border-radius: 99px; padding: 2px 7px; margin-left: 6px; }
+  td .sub { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+             letter-spacing: .06em; color: var(--plum-muted); }
+  tfoot td, tfoot th { font-weight: 600; border-top: 2px solid var(--border); border-bottom: 0; }
+
+  /* Reference material, folded by default: it is there for the reader who wants to check
+     something, and out of the way for the one who does not. */
+  .foldgroup { border-bottom: 1px solid var(--border); margin: 28px 0 32px; }
+  .fold { border-top: 1px solid var(--border); }
+  .fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center;
+                     justify-content: space-between; gap: 16px; padding: 16px 2px;
+                     font-size: 20px; line-height: 28px; font-weight: 500; }
+  .fold > summary::-webkit-details-marker { display: none; }
+  .fold > summary::after { content: "+"; font-family: 'IBM Plex Mono', ui-monospace, monospace;
+                            font-size: 22px; line-height: 1; color: var(--orchid); flex: 0 0 auto; }
+  .fold[open] > summary::after { content: "−"; }
+  .fold > summary:hover { color: var(--orchid); }
+  .fold > summary:focus-visible { outline: 2px solid var(--orchid); outline-offset: 2px; border-radius: 6px; }
+  .fold > .measure { padding: 2px 2px 14px; }
+
+  .callout { border-left: 3px solid var(--coral); background: var(--card); border-radius: 0 14px 14px 0;
+              padding: 16px 20px; margin: 24px 0; }
+  .stars { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--border); }
+  /* Touch devices: no hover, so every affordance has to be tappable. Apple's
+     44px is the target; the pill's own padding plus this gets close enough
+     without turning the legend into a wall. */
+  @media (hover: none) {
+    .chartkey button { padding: 10px 14px 10px 11px; font-size: 13px; }
+    .chartkey button .sw { width: 11px; height: 11px; }
+  }
+  @media (max-width: 480px) {
+    .keys { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    h1 { font-size: 44px; line-height: 46px; }
+    h2 { font-size: 32px; line-height: 36px; }
+    h3 { font-size: 24px; line-height: 30px; }
+    body { font-size: 16px; line-height: 26px; }
+    .wrap { padding: 36px 18px 64px; }
+    .fig { padding: 18px 12px 14px; border-radius: 14px; }
+    th, td { padding: 9px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="stars">
+    <svg width="18" height="18" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 2 Q54.5 45.5 98 50 Q54.5 54.5 50 98 Q45.5 54.5 2 50 Q45.5 45.5 50 2 Z M50 35 L65 50 L50 65 L35 50 Z" fill="#f98c82" fill-rule="evenodd"/></svg>
+    <span class="label">Optimism · Season 8 · Growth grants</span>
+  </div>
+  <h1>What the liquidity did after 2.2M OP</h1>
+  <p class="lede measure">Nine Season 8 growth programs, measured contract by contract on-chain,
+  day by day: what the liquidity in the incentivized contracts did while the rewards ran, what it
+  did afterwards, and what the next program should do differently.</p>
+  <p class="small">Data through 2026-09-15, when the two programs still running were frozen. Page
+  built 2026-09-22. The ΔTVL, peak and milestone figures come from measurements committed to a
+  public repository: <a href="https://github.com/brichis/s8-grant-impact-analysis/blob/main/scripts/cohort_summary.py"><code>cohort_summary.py</code></a>
+  works out the figures, and <a href="https://github.com/brichis/s8-grant-impact-analysis/blob/main/scripts/report_html.py"><code>report_html.py</code></a>
+  builds this page. Dates and OP amounts come from the sources listed at the end.</p>
+  <hr class="rule">
+</header>
+
+<section id="short">
+  <h2>The short version</h2>
+  <div class="keys">
+    <div class="key" style="--accent: #f98c82"><span class="label">Observed ΔTVL</span>
+      <span class="n">+$8.00M</span><span class="t">in the targeted contracts across the nine programs, or $3.62 per OP delivered. Six of nine were positive.</span></div>
+    <div class="key" style="--accent: #c6b2e8"><span class="label">Concentration</span>
+      <span class="n">84%</span><span class="t">of the net total came from one grant, 40acres.finance. Of the positive movements alone it is 75.8%.</span></div>
+    <div class="key" style="--accent: #7fd6cd"><span class="label">Milestones</span>
+      <span class="n">5 of 8</span><span class="t">grants with a Milestone 1 target reached that target on at least one day inside their incentive window. Of the seven with a full-program target, one reached it.</span></div>
+    <div class="key" style="--accent: #f3e3a6"><span class="label">Unclaimed</span>
+      <span class="n">1.27M OP</span><span class="t">sits in the claim contract, never claimed, by grants that never ran a program.</span></div>
+  </div>
+  <p class="small measure"><strong>One way of looking at the season.</strong> These figures are a
+  targeted measurement: the change in TVL inside the contracts each grant named, across the days it
+  actually paid incentives, with quantities valued at one fixed date. A different formula, window
+  or scope gives a different number.</p>
+  <div class="measure">
+    <ul>
+      <li><strong>Programs peak early and give it back.</strong> The median program peaked on day 56, which is 41% of the way in. Three of the five that met M1 were below that target again at their last reading: Extrafi when it closed, and Velodrome and Curve Lending at the cutoff.</li>
+      <li><strong>OP fell 55%</strong> between the average program start and the average program end. The OP behind these grants was worth $708k when delivered and $291k when the programs ended.</li>
+      <li><strong>Most of the wait came before the OP was delivered.</strong> From application to the first day of incentives took a median of 71 days. In seven of the nine programs most of it passed before the OP reached the grantee, and the other two began before it did. Lesson 2 breaks it down. The year in the schedule was the allowance, not the work.</li>
+      <li><strong>Staging worked.</strong> 2.47M OP was never released because later tranches depended on progress. But 340k OP was delivered to grants that never ran anything.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="results">
+  <h2>What each program did</h2>
+  <p class="measure">ΔTVL is measured at fixed end-date prices, so it counts liquidity added, not
+  token prices moving. The peak is the highest the daily series reached inside the incentive
+  window, and the milestone columns are judged on it.</p>
+
+  <div class="fig">
+    <span class="label">Figure 1 · Peak reached vs. where it ended</span>
+    <div id="c-peak" class="chart" style="height:460px"></div>
+    <p class="cap small">Each program's highest day against its closing figure. Velodrome reached
+    +$10.4M and is now below zero. 40acres kept 95% of its peak.</p>
+  </div>
+
+  <div class="tablecard">
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>Grantee</th><th class="num">OP</th><th class="num">S8 ΔTVL</th><th class="num">$/OP</th>
+        <th class="num">M1 target</th><th class="mark">M1</th><th class="num">Total target</th><th class="mark">Total</th>
+        <th class="num">Retention +30d</th><th class="num">Peak</th><th class="num">Length</th>
+      </tr></thead>
+      <tbody>
+      <tr class="interim">
+        <th scope="row">Velodrome Finance <span class="tag">interim</span></th>
+        <td class="num">760,000</td>
+        <td class="num">−$463,690</td>
+        <td class="num">−0.61</td>
+        <td class="num">$3.20M</td>
+        <td class="mark"><span class="met">✓</span></td>
+        <td class="num">$8.00M</td>
+        <td class="mark"><span class="met">✓</span></td>
+        <td class="num">—</td>
+        <td class="num">$10,446,680<span class="sub">2026-03-20</span></td>
+        <td class="num">31 wk</td>
+      </tr>
+      <tr>
+        <th scope="row">40acres.finance</th>
+        <td class="num">200,000</td>
+        <td class="num">$6,757,803</td>
+        <td class="num">33.79</td>
+        <td class="num">$3.50M</td>
+        <td class="mark"><span class="met">✓</span></td>
+        <td class="num">$9.00M</td>
+        <td class="mark"><span class="miss">✗</span></td>
+        <td class="num">109.0%</td>
+        <td class="num">$7,150,411<span class="sub">2026-01-25</span></td>
+        <td class="num">15 wk</td>
+      </tr>
+      <tr class="interim">
+        <th scope="row">Curve Lending <span class="tag">interim</span></th>
+        <td class="num">250,000</td>
+        <td class="num">$442,797</td>
+        <td class="num">1.77</td>
+        <td class="num">$3.00M</td>
+        <td class="mark"><span class="met">✓</span></td>
+        <td class="num">—</td>
+        <td class="mark">—</td>
+        <td class="num">—</td>
+        <td class="num">$3,777,080<span class="sub">2026-07-07</span></td>
+        <td class="num">22 wk</td>
+      </tr>
+      <tr>
+        <th scope="row">Extrafi</th>
+        <td class="num">100,000</td>
+        <td class="num">−$126,636</td>
+        <td class="num">−1.27</td>
+        <td class="num">$1.50M</td>
+        <td class="mark"><span class="met">✓</span></td>
+        <td class="num">$3.00M</td>
+        <td class="mark"><span class="miss">✗</span></td>
+        <td class="num">76.8%</td>
+        <td class="num">$2,059,448<span class="sub">2026-01-28</span></td>
+        <td class="num">15 wk</td>
+      </tr>
+      <tr>
+        <th scope="row">Truemarkets</th>
+        <td class="num">70,000</td>
+        <td class="num">$984,742</td>
+        <td class="num">14.07</td>
+        <td class="num">$2.00M</td>
+        <td class="mark"><span class="miss">✗</span></td>
+        <td class="num">$4.00M</td>
+        <td class="mark"><span class="miss">✗</span></td>
+        <td class="num">43.7%</td>
+        <td class="num">$1,776,404<span class="sub">2025-11-30</span></td>
+        <td class="num">20 wk</td>
+      </tr>
+      <tr>
+        <th scope="row">PancakeSwap</th>
+        <td class="num">600,000</td>
+        <td class="num">$685,923</td>
+        <td class="num">1.14</td>
+        <td class="num">$2.64M</td>
+        <td class="mark"><span class="miss">✗</span></td>
+        <td class="num">$6.60M</td>
+        <td class="mark"><span class="miss">✗</span></td>
+        <td class="num">61.0%</td>
+        <td class="num">$1,512,961<span class="sub">2026-01-21</span></td>
+        <td class="num">30 wk</td>
+      </tr>
+      <tr>
+        <th scope="row">Hydrex</th>
+        <td class="num">50,000</td>
+        <td class="num">−$315,659</td>
+        <td class="num">−6.31</td>
+        <td class="num">$1.50M</td>
+        <td class="mark"><span class="miss">✗</span></td>
+        <td class="num">—</td>
+        <td class="mark">—</td>
+        <td class="num">33.6%</td>
+        <td class="num">$186,224<span class="sub">2026-01-13</span></td>
+        <td class="num">9 wk</td>
+      </tr>
+      <tr>
+        <th scope="row">Oku</th>
+        <td class="num">150,000</td>
+        <td class="num">$37,310</td>
+        <td class="num">0.25</td>
+        <td class="num">$25K</td>
+        <td class="mark"><span class="met">✓</span></td>
+        <td class="num">$75K</td>
+        <td class="mark"><span class="miss">✗</span></td>
+        <td class="num">—</td>
+        <td class="num">$37,310<span class="sub">2026-01-28</span></td>
+        <td class="num">10 wk</td>
+      </tr>
+      <tr>
+        <th scope="row">Super DCA</th>
+        <td class="num">30,000</td>
+        <td class="num">$1,390</td>
+        <td class="num">0.05</td>
+        <td class="num">—</td>
+        <td class="mark">—</td>
+        <td class="num">$150K</td>
+        <td class="mark"><span class="miss">✗</span></td>
+        <td class="num">97.4%</td>
+        <td class="num">$2,496<span class="sub">2026-01-03</span></td>
+        <td class="num">17 wk</td>
+      </tr>
+      </tbody>
+      <tfoot><tr>
+        <th scope="row">Total</th><td class="num">2,210,000</td><td class="num">$8,003,979</td>
+        <td class="num">3.62</td><td></td><td class="mark">5 met</td><td></td><td class="mark">1 met</td>
+        <td></td><td></td><td></td>
+      </tr></tfoot>
+    </table>
+  </div>
+  <div class="tablenotes">
+    <p class="scrollhint small">Scroll the table sideways for the milestone, retention and peak
+    columns. The grantee names stay in place.</p>
+    <p class="small">Interim programs (Curve Lending, Velodrome) have no announced end date and are
+    measured to the 2026-09-15 cutoff. Retention is only available where a window closed 30 days ago.</p>
+  </div>
+  </div>
+
+  <div class="fig">
+    <span class="label">Figure 2 · The same nine curves, on one scale</span>
+    <div id="c-curves" class="chart" style="height:430px"></div>
+    <div id="k-curves" class="chartkey" role="group" aria-label="Programs in Figure 2"></div>
+    <p class="cap small">Each program's ΔTVL as a share of its own peak, against how far it was
+    through its window. Point at a name above, or at a line, to follow one program through the
+    tangle. Click a name to keep it lit. The shape repeats: climb, peak around the middle, drift
+    down.</p>
+  </div>
+</section>
+
+<section id="lessons">
+  <h2>Lessons for the next program</h2>
+
+  <h3>1 · Judge milestones on what actually happened</h3>
+  <p class="measure">A milestone is met here if the target was reached on any day inside the
+  incentive window, evidenced by the validated daily series. A single-date checkpoint, either the
+  snapshot or the incentive end, is kept as data. But it cannot tell apart a program that
+  reached its target and lost the liquidity from one that never got close.</p>
+  <div class="callout measure">
+    <p style="margin:0"><strong>The obvious objection is gaming:</strong> touch the target for a day,
+    then pull the liquidity out. The defence is to require an average over a set number of days.
+    Here it changes nothing: the best 7-day average produces the same verdicts. That says these
+    peaks were levels held for weeks, not one-day spikes.</p>
+  </div>
+
+  <h3>2 · Twelve months is the allowance; three is the useful deadline</h3>
+  <p class="measure">Every grant in this season was approved between 12 September and 19 December
+  2025: 40acres in September, and the other 23 between 2 October and 19 December. Teams had about a year to run the work end to end. A year on, several approved grants
+  still have nothing to show, while the ones that delivered did not need the year. From the
+  application going in to the first day of incentives the median was <strong>71 days</strong>:
+  21 to the decision, 41 more until the OP reached the grantee, and 3 from delivery to launch.
+  Each stage is the median of its own distribution, so the three do not sum to the 71 in the last row.
+  The rows cover the same nine grants. "Delivered" means the first tranche reached the grantee
+  on-chain, so the middle stage includes however long the grantee took to claim. A negative figure
+  means incentives began before the OP was delivered.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Stage</th><th class="num">Median</th><th class="num">Range</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Application submitted → approved</th><td class="num">21 days</td><td class="num">15–59</td></tr>
+      <tr><th scope="row">Approved → OP delivered</th><td class="num">41 days</td><td class="num">20–144</td></tr>
+      <tr><th scope="row">OP delivered → incentives live</th><td class="num">3 days</td><td class="num">−91 to 88</td></tr>
+      <tr><th scope="row">Application → incentives live</th><td class="num">71 days</td><td class="num">51–218</td></tr>
+    </tbody>
+  </table></div>
+  <p class="measure"><strong>40acres is the model case:</strong> application created Aug 25, 2025,
+  announced as approved in the <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">Cycle
+  41 report</a> on Sep 12, OP delivered Oct 7, distribution
+  started Oct 15, program finished Jan 27, 2026. That is 51
+  days from application to launch, and the best result in the cohort. At the other end, Curve
+  Lending took 218 days. <strong>Give three months from approval to launch, not twelve</strong>, with a
+  deadline for the final report. Count the delivery inside those three months, since getting the OP
+  delivered took a median of 41 days, against 21 for the decision itself.</p>
+
+  <h3>3 · The extra weeks bought decay, not liquidity</h3>
+  <p class="measure">Across all nine programs, including the two still running, the median length was 16.6 weeks, from 9 to 31. But the peak landed at a
+  median of <strong>day 56, week eight</strong>, and it did not move later in the longer programs
+  (the Spearman rank correlation between a program's length and the day it peaked is −0.10, i.e.
+  none; Pearson on the same pairs gives −0.13, which says the same thing). Eight of
+  the nine peaked inside twelve weeks. What the longer windows added was the decline after the
+  peak, not more liquidity.</p>
+  <p class="measure">Two of the nine are still running, so their length is set by the cutoff and
+  not by the program. On the seven that closed, the median length is 14.9 weeks, from 9 to 30. The
+  peak still lands at a median of day 56, six of the seven peaked inside twelve weeks, and the
+  Spearman correlation is −0.21, which with seven points is no more distinguishable from none.</p>
+  <p class="measure"><strong>So: set a fixed duration of about twelve weeks, with a review at week
+  eight</strong>, where the median program topped out. Extend only on evidence that liquidity
+  is still climbing. Nine programs cannot prove an optimal length, and the sample says nothing
+  about whether a shorter program would have reached the same peak. What it does say is that
+  running past the peak, with the incentive still paying out, is what these windows mostly
+  bought.</p>
+
+  <h3>4 · Staged payments worked, and there is OP worth trying to recover</h3>
+  <div class="fig">
+    <span class="label">Figure 3 · Where the 6.29M OP went</span>
+    <div id="c-flow" class="chart" style="height:220px"></div>
+    <p class="cap small">Only the first block funded a measured program. The third block never left
+    the claim contract. The four blocks are built from the Council's five cycle reports and the
+    Foundation's <a href="https://docs.google.com/spreadsheets/d/1Ul8iMTsOFUKUmqz6MK0zpgt8Ki8tFtoWKGlwXj-Op34/edit">public
+    delivery tracker</a>, cross-checked against the Hedgey claim contract on-chain.</p>
+  </div>
+  <div class="measure">
+    <ul>
+      <li><strong>2.47M OP was never released</strong>, because later tranches were conditional on progress.</li>
+      <li><strong>340k OP was delivered to grants that never ran a program.</strong> A 20% first tranche instead of 40% would have exposed about half of it.</li>
+      <li><strong>1.27M OP was sent to the claim contract and never claimed by the grantee:</strong> Morpho 600k, Tydro 600k, LiqPass 32k, Strands 28k, NEUS 8k. None of it has left the contract, which is visible on-chain. Treat the 1.27M as potentially recoverable and worth pursuing, not as recovered. LiqPass was withdrawn outright.</li>
+    </ul>
+    <p>Both councils were dissolved on 15 July 2026. The remaining milestones are not unattended:
+    the approved <a href="https://vote.optimism.io/proposals/94653586928704829987664319556957069435634532914401865187521227109996000544034">dissolution
+    proposal</a> states that any remaining milestones for existing Grants Council grants will be
+    monitored by the Foundation through a third-party contractor. What the proposal does not
+    settle is who decides what happens to OP that was released and never used. <strong>That is
+    still an opening for the community at large:</strong> watch whether these programs are
+    delivered, and press for recovery where they are not. <strong>The fifteen grants that never ran
+    a program were approved between 23 October and 19 December 2025</strong>, so each reaches one
+    year between October and December 2026: none has passed that mark yet, and all of them do
+    within three months.</p>
+  </div>
+
+  <h3>5 · OP moved too much for USD-denominated planning</h3>
+  <div class="fig">
+    <span class="label">Figure 4 · OP price across the season</span>
+    <div id="c-price" class="chart" style="height:330px"></div>
+    <p class="cap small">Targets were written in USD and stayed fixed. The incentive behind them
+    lost more than half its value between the average start and the average end.</p>
+  </div>
+  <p class="measure">Hydrex's own milestone report notes the grant was structured at $0.65 OP
+  against $0.33 at reporting time. A fall of that size is also a candidate explanation for the modest $/OP: a
+  program designed around a budget worth twice what it turned out to be, matched by co-incentives
+  sized the same way, delivers less than the approval assumed, and is then judged against a target
+  that never moved.</p>
+
+  <h3>6 · Collect the evaluation inputs at approval time</h3>
+  <p class="measure">The incentive windows and the incentivized contracts had to be rebuilt by hand
+  for this review, from milestone updates, social posts and on-chain data. TVL valued at each date's own prices, the way DefiLlama and similar dashboards report it, is no
+  substitute: across the eight grants with a price breakdown, the same contracts fell $5.62M
+  measured that way, while ΔTVL at fixed prices rose $7.97M. The $13.59M gap is token price movement, not
+  liquidity.</p>
+  <p class="measure">A short form at approval, updated at each milestone, would have produced this
+  review automatically: incentive start and end dates with a link to the announcement; contract
+  addresses or pool IDs per chain and their type; incentive token and amount per period; and
+  co-incentives in token units.</p>
+
+  <h3>7 · Size the incentive in OP, and say how a USD milestone will be measured</h3>
+  <p class="measure"><strong>Denominate the incentive itself in OP, not in USD.</strong> A program that promises users a fixed amount in USD for keeping their funds in for a set time is exposed to the token price. That happened in this season: when OP fell, the grant no longer covered the promise and the team had to find the difference elsewhere. A grant is a number of tokens, and the program should be written the same way.</p>
+  <p class="measure"><strong>A milestone can still be set in USD.</strong> That is often how a
+  target makes sense to everyone reading it. What has to come with it is <em>how it will be
+  measured</em>. That calculation is a small piece of work with public tools: on-chain reads for
+  quantities, DefiLlama or a price API for the fixed-date prices. It is the same calculation behind
+  every figure in this report. Agree on it when the grant is approved, not when it is being judged.</p>
+</section>
+
+<section id="curves">
+  <h2>The nine curves</h2>
+  <p class="measure">Every program's daily ΔTVL, validated against the on-chain checkpoints before
+  it was used. <strong>These daily series do not always end on the table's closing figure</strong>,
+  for two reasons. For the seven finished programs the line continues 30 days past the incentive
+  end, so its last point is a later date than the one the table reports. And for Velodrome the
+  daily series is rebuilt from Dune token transfers, which do not cover Soneium: the line therefore
+  leaves out Soneium, which contributes −$62,904 to the table's ΔTVL, because the table is measured
+  by direct on-chain reads across every chain in scope. Where the two differ, the table is the measurement
+  and the line is the shape. The dotted rule marks the day the incentive stopped, and the shaded band after it is
+  the following 30 days. It shows what the liquidity did once the rewards ended, and it never
+  counts toward the peak. The two interim programs have no band: their window is still
+  open.</p>
+  <div class="fig">
+    <div id="c-small" class="chart" style="height:640px"></div>
+    <p class="cap small">Sources: Dune token transfers for AMM pools; pool-manager events for
+    PancakeSwap Infinity; VotingEscrow events for 40acres' veNFT loans; daily on-chain reads for
+    vaults, lending markets and Uniswap v4 pools.</p>
+  </div>
+</section>
+
+<section id="method">
+  <h2>Method, and who wrote this</h2>
+  <p class="measure">I served on the last iteration of the Milestones and Metrics Council, so the
+  payment data here is first-hand up to the point the councils were dissolved. That is a
+  disclosure, not a claim of neutrality: everything above is reproducible from the sources named,
+  and the <a href="https://github.com/brichis/s8-grant-impact-analysis">full pipeline is public</a> if you want to check any of it.</p>
+  <h3>The decisions behind the figures, and why</h3>
+  <p class="measure">Each of these is a choice, and each one moves the numbers. They are listed so
+  that anyone who would have chosen differently can see exactly where the difference enters and
+  recompute from the same measurements.</p>
+  <div class="measure">
+    <ul>
+      <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized. The formula is the one in the <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>.</li>
+      <li><strong>The window here is not the official one.</strong> The S8 methodology opens the window at the date of actual grant delivery and closes it at the earlier of the incentive close and the end of Season 8, which the <a href="https://gov.optimism.io/t/guide-to-season-8/10001">Guide to Season 8</a> gives as 24 December 2025. This review opens it on the first day incentives were actually paid and closes it on the last, with no season cap. Both choices move the figures. Opening at delivery would misplace the window for several programs: the first tranche reached the grantee a median of 3 days before the first incentive day, but 88 days before for Curve Lending, and after it for two programs whose teams began incentives before claiming. The cap is the larger difference. All nine incentive windows ended after 24 December 2025, and Velodrome and Curve Lending began after it, so applying the cap would cut every program short and leave those two with no incentive days inside the window. The daily series behind each figure are in the repository, so the same measurement can be run over the official window.</li>
+      <li><strong>Scope is targeted, contract by contract, not protocol-wide.</strong> Each grant named the contracts it would incentivize, and only those are measured. A protocol's headline TVL moves for reasons that have nothing to do with a grant, so counting all of it would credit or blame a program for liquidity it never touched. The cost of this choice is that it misses any spillover into the rest of the protocol. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
+      <li><strong>Quantities are valued at one fixed date, not at each day's price.</strong> Lesson 6 shows how far the two readings can differ.</li>
+      <li><strong>A milestone counts as met if the target was reached on any day inside the window.</strong> Lesson 1 explains why.</li>
+      <li><strong>The peak is the highest day inside the incentive window.</strong> The 30 days drawn after it never count toward the peak or the closing figure.</li>
+      <li><strong>Which grants this covers.</strong> The Council approved <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">24 applications</a> on final review across Season 8, spending the full 6.29M OP budget. This review measures the <strong>nine</strong> of those that claimed their OP and ran an incentive program that could be measured on-chain. The other fifteen are counted in the OP figures but have no ΔTVL.</li>
+      <li><strong>Two programs are still running.</strong> Curve Lending and Velodrome are marked interim throughout. Their figures are a reading at the 2026-09-15 cutoff, so they are not comparable to the seven that closed.</li>
+    </ul>
+  </div>
+  <div class="foldgroup">
+  <details class="fold">
+    <summary>What the records can and cannot show</summary>
+    <div class="measure">
+    <ul>
+      <li><strong>How OP reached grantees.</strong> The Milestones and Metrics Council's <a href="https://optimism.blockscout.com/address/0xC0603610C7F923c93b18B48eF63F0d733CB8C89e">multisig</a> sent each grant's OP to the <a href="https://optimism.blockscout.com/address/0x8A2725a6f04816A5274dDD9FEaDd3bd0C253C1A6">Hedgey ClaimCampaigns contract</a>, and each grantee then had to claim it there. One payment did not go through the contract: Curve Lending's second, which the multisig sent directly and which counts as a delivery.</li>
+      <li><strong>Delivery dates are on-chain.</strong> A grant is dated as delivered on the day its first tranche reached the grantee, read from Blockscout as the transfer out of the claim contract. That is later than the day the multisig sent the OP into it, because it includes however long the grantee took to claim. The Foundation's <a href="https://docs.google.com/spreadsheets/d/1Ul8iMTsOFUKUmqz6MK0zpgt8Ki8tFtoWKGlwXj-Op34/edit">public delivery tracker</a> keeps its own initial delivery date, which is not used here. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
+      <li><strong>Approval dates are the Council's cycle-report dates.</strong> Each grant is dated to the report of the cycle that announced it, listed under Sources, so every approval rests on one public source and one rule. A conditional pass counts from its report. Karma supplies the application dates only: its own approval field disagrees with the reports for some grants, and 40acres shows why. The Cycle 41 report of 12 September already lists it as passed, but Karma dates its approval 2 October.</li>
+      <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time, and I did not find a way to verify how much was actually deployed. There may well be one. I did not pursue it.</li>
+    </ul>
+  </div>
+  </details>
+  <details class="fold">
+    <summary>How it was built</summary>
+    <div class="measure">
+    <ul>
+      <li><strong>Built with Claude.</strong> I used Claude Design for my brand's design system, Claude Chat to shape the first approaches and to choose the tools, and <a href="https://claude.com/claude-code">Claude Code</a> for the code, the charts, this report and the audits.</li>
+      <li><strong>On-chain reads:</strong> an Alchemy archive node: <code>eth_call</code> at a
+      block per checkpoint, <code>eth_getCode</code> to date deployments by binary search,
+      <code>eth_getLogs</code> for one-off events and <code>alchemy_getAssetTransfers</code> for
+      ERC-721 movements. A local cache means every figure can be recomputed without paying for
+      the reads twice.</li>
+      <li><strong>Protocol shapes read directly:</strong> ERC-4626 vaults, Aave-style aTokens,
+      Uniswap v3 and v4 (tick-walked through StateView), PancakeSwap Infinity, Velodrome and
+      Aerodrome VotingEscrow veNFTs, and Curve LlamaLend. Function selectors and event topics were
+      derived with keccak from signatures verified in each protocol's source, never copied from
+      memory.</li>
+      <li><strong>Dune (DuneSQL / Trino):</strong> six saved queries rebuild daily balances from
+      token transfers and from pool-manager and VotingEscrow events, where a daily on-chain read
+      would have been too slow.</li>
+      <li><strong>DefiLlama:</strong> protocol TVL series and historical token prices, including the
+      fixed end-date prices the S8 formula uses.</li>
+      <li><strong>Karma API:</strong> each application's submission date.</li>
+      <li><strong>The registry is a spreadsheet:</strong> grants, windows and scope contracts live
+      in Google Sheets and are read as CSV at run time, so a human can correct a date without
+      touching code. Apps Script calls Blockscout inside the sheet to date each payment,
+      rather than copying transaction dates by hand.</li>
+      <li><strong>Python</strong> (pandas, requests) for the pipeline, <strong>Plotly</strong> for
+      the charts on this page, and Blockscout, Etherscan and Herd for reading unfamiliar contracts
+      on Base before trusting a selector or an event.</li>
+      <li><strong>Every derived number is validated before it is used:</strong> each daily series
+      has to reproduce every on-chain checkpoint, and the reconstructions cross-check against each
+      other: the veNFT rebuild against DefiLlama, the v4 tick walk against Uniswap's own
+      ReservesLens.</li>
+    </ul>
+  </div>
+  </details>
+  <details class="fold">
+    <summary>Sources</summary>
+    <div class="measure">
+    <ul>
+      <li><strong>Code and measurements.</strong> The <a href="https://github.com/brichis/s8-grant-impact-analysis">pipeline repository</a>, including the per-grantee measurements in <code>output/</code> and <code>data/</code>, the Dune queries under <code>scripts/dune/</code>, and <a href="https://github.com/brichis/s8-grant-impact-analysis/blob/main/scripts/cohort_summary.py"><code>cohort_summary.py</code></a>, which turns them into every figure on this page.</li>
+      <li><strong>Council decisions and budget.</strong> The Season 8 cycle reports: <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">41</a>, <a href="https://gov.optimism.io/t/cycle-42-grants-report/10308">42</a>, <a href="https://gov.optimism.io/t/cycle-43-grants-council-report/10363">43</a>, <a href="https://gov.optimism.io/t/cycle-44-grants-report/10410">44</a> and the <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">Cycle 46 and Season 8 final report</a>, which together account for all 24 approvals and the full 6.29M OP, and date each approval.</li>
+      <li><strong>Payments.</strong> The Foundation's <a href="https://docs.google.com/spreadsheets/d/1Ul8iMTsOFUKUmqz6MK0zpgt8Ki8tFtoWKGlwXj-Op34/edit">public delivery tracker</a>, cross-checked on-chain.</li>
+      <li><strong>Method.</strong> The <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>, whose formula this review uses and whose window it does not; the difference is set out above.</li>
+      <li><strong>Council dissolution.</strong> The <a href="https://vote.optimism.io/proposals/94653586928704829987664319556957069435634532914401865187521227109996000544034">Milestones and Metrics Council</a> and <a href="https://vote.optimism.io/proposals/17610825935142917870367542494361266033681870435033393450622576978064079317264">Grants Council</a> dissolution proposals, both approved 15 July 2026.</li>
+    </ul>
+  </div>
+  </details>
+  </div>
+  <div class="callout measure">
+    <p style="margin:0"><strong>If you have information to add, please get in touch.</strong>
+    Maybe you were on one of these teams, or you know a program that ran without being reported,
+    or you can identify a payment we could not. This review is only as good as what is visible
+    from the outside.</p>
+  </div>
+  <p class="measure">Thank you to everyone who read earlier drafts of this report and sent feedback.</p>
+</section>
+
+<footer>
+  <div class="stars">
+    <svg width="14" height="14" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 2 Q54.5 45.5 98 50 Q54.5 54.5 50 98 Q45.5 54.5 2 50 Q45.5 45.5 50 2 Z M50 35 L65 50 L50 65 L35 50 Z" fill="#f98c82" fill-rule="evenodd"/></svg>
+    <span class="label">© 2026 Bricia Guzmán · Compliance &amp; Verification</span>
+  </div>
+  <p class="small" style="margin-top:8px">Optimism Season 8 growth grants · data through 2026-09-15 ·
+  page built 2026-09-22.</p>
+</footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<script>
+const D = {"peak_end":{"names":["Velodrome Finance","40acres.finance","Curve Lending","Extrafi","Truemarkets","PancakeSwap","Hydrex","Oku","Super DCA"],"peak":[10446680.0,7150411.0,3777080.0,2059448.0,1776404.0,1512961.0,186224.0,37310.0,2496.0],"end":[-463690.01,6757802.86,442797.28,-126635.85,984741.84,685922.69,-315659.1,37309.68,1389.55],"peak_label":["$10.45M","$7.15M","$3.78M","$2.06M","$1.78M","$1.51M","$186K","$37K","$2K"],"end_label":["\u2212$464K","$6.76M","$443K","\u2212$127K","$985K","$686K","\u2212$316K","$37K","$1K"]},"curves":[{"name":"Velodrome Finance","x":[0.0,0.46,0.92,1.38,1.84,2.3,2.76,3.23,3.69,4.15,4.61,5.07,5.53,5.99,6.45,6.91,7.37,7.83,8.29,8.76,9.22,9.68,10.14,10.6,11.06,11.52,11.98,12.44,12.9,13.36,13.82,14.29,14.75,15.21,15.67,16.13,16.59,17.05,17.51,17.97,18.43,18.89,19.35,19.82,20.28,20.74,21.2,21.66,22.12,22.58,23.04,23.5,23.96,24.42,24.88,25.35,25.81,26.27,26.73,27.19,27.65,28.11,28.57,29.03,29.49,29.95,30.41,30.88,31.34,31.8,32.26,32.72,33.18,33.64,34.1,34.56,35.02,35.48,35.94,36.41,36.87,37.33,37.79,38.25,38.71,39.17,39.63,40.09,40.55,41.01,41.47,41.94,42.4,42.86,43.32,43.78,44.24,44.7,45.16,45.62,46.08,46.54,47.0,47.47,47.93,48.39,48.85,49.31,49.77,50.23,50.69,51.15,51.61,52.07,52.53,53.0,53.46,53.92,54.38,54.84,55.3,55.76,56.22,56.68,57.14,57.6,58.06,58.53,58.99,59.45,59.91,60.37,60.83,61.29,61.75,62.21,62.67,63.13,63.59,64.06,64.52,64.98,65.44,65.9,66.36,66.82,67.28,67.74,68.2,68.66,69.12,69.59,70.05,70.51,70.97,71.43,71.89,72.35,72.81,73.27,73.73,74.19,74.65,75.12,75.58,76.04,76.5,76.96,77.42,77.88,78.34,78.8,79.26,79.72,80.18,80.65,81.11,81.57,82.03,82.49,82.95,83.41,83.87,84.33,84.79,85.25,85.71,86.18,86.64,87.1,87.56,88.02,88.48,88.94,89.4,89.86,90.32,90.78,91.24,91.71,92.17,92.63,93.09,93.55,94.01,94.47,94.93,95.39,95.85,96.31,96.77,97.24,97.7,98.16,98.62,99.08,99.54,100.0],"y":[0.0,1.88,4.49,17.28,15.45,25.06,19.93,26.23,16.69,10.02,11.93,9.95,13.48,12.75,7.62,57.87,57.24,60.57,60.47,56.23,61.03,30.7,64.74,62.2,66.84,67.49,64.34,65.58,62.54,73.4,75.8,84.41,90.72,82.18,88.55,92.53,90.26,97.95,100.0,89.68,88.36,94.63,86.26,87.26,77.3,41.99,45.07,42.47,38.52,13.83,43.07,39.36,36.32,34.35,16.13,36.33,37.84,46.34,44.02,39.32,20.16,36.01,40.32,22.55,21.08,13.84,30.62,12.88,7.62,9.17,-0.4,0.06,1.35,12.15,10.86,10.98,18.6,25.12,25.24,17.43,14.75,19.35,16.15,37.34,27.62,39.53,14.6,18.82,25.55,23.33,16.52,18.52,13.08,14.81,13.72,18.82,2.56,10.52,9.98,13.24,14.43,15.29,14.35,13.33,17.46,24.64,11.35,2.6,5.45,6.32,6.7,6.18,-3.23,-52.42,-37.35,-19.2,-23.88,-18.11,-16.46,-9.59,-9.68,-5.39,5.32,4.09,-1.04,8.08,5.85,8.68,-5.6,-1.35,0.74,-2.35,-2.25,14.18,-16.04,5.54,8.46,-9.41,-1.25,-1.24,6.35,6.26,5.82,-3.42,-11.2,-14.18,7.41,2.03,-16.66,4.15,0.05,0.68,5.85,-0.49,-7.91,-7.41,-2.46,-1.61,-1.99,-4.82,-3.15,-3.94,-4.01,-28.03,-27.9,-29.99,-32.74,-29.12,-33.97,-30.31,-27.54,-28.22,-26.62,-25.98,-25.6,-32.06,-30.58,-33.03,-31.91,-27.16,-27.54,-28.09,-30.97,-24.21,-21.86,-1.88,1.76,-2.01,6.58,1.23,-9.47,-4.52,-10.65,-8.86,-2.79,2.03,-8.23,-8.71,-7.82,-2.29,0.88,-3.06,0.14,3.54,-4.7,11.32,3.53,4.82,10.41,-0.29,-3.67,-3.77,-4.94,-6.01,-3.79,2.62,3.71,-3.84],"peak_pos":17.5},{"name":"40acres.finance","x":[0.0,0.96,1.92,2.88,3.85,4.81,5.77,6.73,7.69,8.65,9.62,10.58,11.54,12.5,13.46,14.42,15.38,16.35,17.31,18.27,19.23,20.19,21.15,22.12,23.08,24.04,25.0,25.96,26.92,27.88,28.85,29.81,30.77,31.73,32.69,33.65,34.62,35.58,36.54,37.5,38.46,39.42,40.38,41.35,42.31,43.27,44.23,45.19,46.15,47.12,48.08,49.04,50.0,50.96,51.92,52.88,53.85,54.81,55.77,56.73,57.69,58.65,59.62,60.58,61.54,62.5,63.46,64.42,65.38,66.35,67.31,68.27,69.23,70.19,71.15,72.12,73.08,74.04,75.0,75.96,76.92,77.88,78.85,79.81,80.77,81.73,82.69,83.65,84.62,85.58,86.54,87.5,88.46,89.42,90.38,91.35,92.31,93.27,94.23,95.19,96.15,97.12,98.08,99.04,100.0],"y":[0.0,-9.6,11.65,8.55,14.38,17.7,18.37,19.98,34.86,35.29,35.74,16.25,8.76,4.14,12.64,13.23,15.5,20.25,6.77,17.24,13.4,-6.14,-3.06,-9.43,-11.86,-16.38,-13.04,-14.36,-15.76,-23.11,-7.18,5.26,9.46,9.48,-2.33,7.11,9.89,-4.14,-2.1,-0.41,2.47,5.65,17.23,13.76,8.76,7.77,-5.32,-1.65,14.95,7.87,22.15,24.17,27.18,25.75,24.47,19.31,19.1,25.28,31.05,31.21,30.36,12.63,11.0,7.93,19.87,22.42,23.89,19.61,21.42,22.04,17.63,21.02,20.87,30.35,29.28,29.18,26.73,16.73,10.86,9.84,7.77,17.28,13.49,12.76,13.97,26.33,25.88,26.85,25.69,23.37,27.45,26.84,19.3,45.23,45.68,34.33,35.16,38.68,45.99,82.93,81.11,89.37,100.0,98.35,94.51],"peak_pos":98.1},{"name":"Curve Lending","x":[0.0,0.66,1.32,1.99,2.65,3.31,3.97,4.64,5.3,5.96,6.62,7.28,7.95,8.61,9.27,9.93,10.6,11.26,11.92,12.58,13.25,13.91,14.57,15.23,15.89,16.56,17.22,17.88,18.54,19.21,19.87,20.53,21.19,21.85,22.52,23.18,23.84,24.5,25.17,25.83,26.49,27.15,27.81,28.48,29.14,29.8,30.46,31.13,31.79,32.45,33.11,33.77,34.44,35.1,35.76,36.42,37.09,37.75,38.41,39.07,39.74,40.4,41.06,41.72,42.38,43.05,43.71,44.37,45.03,45.7,46.36,47.02,47.68,48.34,49.01,49.67,50.33,50.99,51.66,52.32,52.98,53.64,54.3,54.97,55.63,56.29,56.95,57.62,58.28,58.94,59.6,60.26,60.93,61.59,62.25,62.91,63.58,64.24,64.9,65.56,66.23,66.89,67.55,68.21,68.87,69.54,70.2,70.86,71.52,72.19,72.85,73.51,74.17,74.83,75.5,76.16,76.82,77.48,78.15,78.81,79.47,80.13,80.79,81.46,82.12,82.78,83.44,84.11,84.77,85.43,86.09,86.75,87.42,88.08,88.74,89.4,90.07,90.73,91.39,92.05,92.72,93.38,94.04,94.7,95.36,96.03,96.69,97.35,98.01,98.68,99.34,100.0],"y":[0.0,0.02,0.02,-0.0,-0.01,0.01,0.02,0.02,0.02,0.02,0.01,0.01,0.01,-0.0,0.0,0.0,-0.01,-0.01,-0.01,0.02,0.03,0.05,0.05,0.03,-0.03,-0.03,-0.03,-0.03,-0.02,0.01,0.01,0.0,0.0,0.01,0.0,0.02,0.01,-0.25,-0.22,-0.22,-0.22,-0.22,-0.23,-0.22,-0.23,-0.2,-0.18,-0.17,-0.13,-0.12,-0.16,-0.19,-0.19,-0.32,-0.38,-0.4,-0.38,-0.37,-0.41,-0.43,-0.41,2.51,39.97,54.08,58.94,60.07,65.06,64.37,78.57,78.48,89.13,94.31,94.2,93.03,98.41,94.55,94.55,98.55,98.58,98.61,98.62,100.0,78.7,81.36,81.1,81.39,82.67,78.08,82.86,83.29,76.57,76.51,75.72,75.88,68.49,70.28,72.74,72.53,72.07,72.12,71.74,71.71,71.48,71.22,71.61,69.52,63.67,63.39,62.01,57.24,53.67,52.28,51.86,49.49,45.87,36.06,36.36,38.04,38.03,37.31,37.28,37.31,36.24,35.56,34.7,34.43,32.91,34.33,33.76,33.78,32.43,32.46,32.55,31.68,31.67,31.83,31.28,30.47,28.98,27.96,19.6,18.24,15.26,15.27,13.26,12.79,12.09,12.14,12.14,11.86,11.74,11.72],"peak_pos":53.6},{"name":"Extrafi","x":[0.0,0.98,1.96,2.94,3.92,4.9,5.88,6.86,7.84,8.82,9.8,10.78,11.76,12.75,13.73,14.71,15.69,16.67,17.65,18.63,19.61,20.59,21.57,22.55,23.53,24.51,25.49,26.47,27.45,28.43,29.41,30.39,31.37,32.35,33.33,34.31,35.29,36.27,37.25,38.24,39.22,40.2,41.18,42.16,43.14,44.12,45.1,46.08,47.06,48.04,49.02,50.0,50.98,51.96,52.94,53.92,54.9,55.88,56.86,57.84,58.82,59.8,60.78,61.76,62.75,63.73,64.71,65.69,66.67,67.65,68.63,69.61,70.59,71.57,72.55,73.53,74.51,75.49,76.47,77.45,78.43,79.41,80.39,81.37,82.35,83.33,84.31,85.29,86.27,87.25,88.24,89.22,90.2,91.18,92.16,93.14,94.12,95.1,96.08,97.06,98.04,99.02,100.0],"y":[0.0,15.05,22.16,25.24,37.04,38.58,45.09,44.17,55.9,50.54,45.22,55.35,63.52,63.12,58.91,74.89,68.27,70.58,72.21,62.67,61.33,41.77,41.31,41.83,37.53,37.7,44.9,43.83,42.55,43.0,49.88,53.65,54.35,51.03,51.59,52.07,52.38,50.24,65.18,71.64,71.62,62.86,63.87,62.98,62.73,64.25,67.35,76.16,69.1,62.07,62.11,62.19,61.02,59.6,59.71,58.95,62.55,45.4,46.78,48.17,49.06,99.71,100.0,95.07,94.12,39.72,40.44,47.77,48.51,47.74,38.27,51.14,24.2,50.44,49.29,49.08,49.1,49.64,47.9,45.36,44.62,44.61,42.89,45.21,43.29,42.27,21.2,19.06,19.51,19.81,1.62,-4.82,-5.77,-9.21,-9.17,-9.36,-10.48,-12.95,-7.85,-8.01,-6.36,-6.24,-6.15],"peak_pos":60.8},{"name":"Truemarkets","x":[0.0,0.72,1.45,2.17,2.9,3.62,4.35,5.07,5.8,6.52,7.25,7.97,8.7,9.42,10.14,10.87,11.59,12.32,13.04,13.77,14.49,15.22,15.94,16.67,17.39,18.12,18.84,19.57,20.29,21.01,21.74,22.46,23.19,23.91,24.64,25.36,26.09,26.81,27.54,28.26,28.99,29.71,30.43,31.16,31.88,32.61,33.33,34.06,34.78,35.51,36.23,36.96,37.68,38.41,39.13,39.86,40.58,41.3,42.03,42.75,43.48,44.2,44.93,45.65,46.38,47.1,47.83,48.55,49.28,50.0,50.72,51.45,52.17,52.9,53.62,54.35,55.07,55.8,56.52,57.25,57.97,58.7,59.42,60.14,60.87,61.59,62.32,63.04,63.77,64.49,65.22,65.94,66.67,67.39,68.12,68.84,69.57,70.29,71.01,71.74,72.46,73.19,73.91,74.64,75.36,76.09,76.81,77.54,78.26,78.99,79.71,80.43,81.16,81.88,82.61,83.33,84.06,84.78,85.51,86.23,86.96,87.68,88.41,89.13,89.86,90.58,91.3,92.03,92.75,93.48,94.2,94.93,95.65,96.38,97.1,97.83,98.55,99.28,100.0],"y":[0.0,0.51,11.72,41.08,41.13,41.26,46.34,48.26,48.26,51.82,51.84,50.74,51.44,73.95,74.02,74.21,97.04,97.08,100.0,96.05,96.21,89.88,89.88,89.86,89.93,89.68,89.69,89.7,89.13,89.19,89.19,89.24,89.26,89.3,89.3,89.92,90.01,90.31,90.32,90.3,90.39,90.05,90.03,90.22,90.27,91.94,91.94,91.97,91.99,91.83,91.58,90.06,90.0,90.71,81.52,82.1,82.2,82.53,82.17,82.2,85.8,85.84,86.33,87.67,88.37,88.4,88.4,88.43,88.44,88.46,88.31,88.35,87.78,87.78,87.13,87.16,87.16,87.19,87.21,87.24,87.19,87.15,87.21,87.27,87.23,83.93,83.99,83.97,84.0,84.02,84.02,83.94,84.65,84.67,84.68,84.7,84.45,82.46,82.41,82.44,82.44,82.47,82.47,82.5,82.5,82.53,82.53,82.55,82.55,82.59,62.67,53.88,53.73,53.95,53.96,54.57,54.57,54.59,54.51,54.52,53.26,55.85,55.96,56.0,55.98,56.02,56.41,56.8,55.25,55.22,55.09,54.97,55.4,55.44,55.44,55.43,55.44,55.45,55.43],"peak_pos":13.0},{"name":"PancakeSwap","x":[0.0,0.48,0.95,1.43,1.9,2.38,2.86,3.33,3.81,4.29,4.76,5.24,5.71,6.19,6.67,7.14,7.62,8.1,8.57,9.05,9.52,10.0,10.48,10.95,11.43,11.9,12.38,12.86,13.33,13.81,14.29,14.76,15.24,15.71,16.19,16.67,17.14,17.62,18.1,18.57,19.05,19.52,20.0,20.48,20.95,21.43,21.9,22.38,22.86,23.33,23.81,24.29,24.76,25.24,25.71,26.19,26.67,27.14,27.62,28.1,28.57,29.05,29.52,30.0,30.48,30.95,31.43,31.9,32.38,32.86,33.33,33.81,34.29,34.76,35.24,35.71,36.19,36.67,37.14,37.62,38.1,38.57,39.05,39.52,40.0,40.48,40.95,41.43,41.9,42.38,42.86,43.33,43.81,44.29,44.76,45.24,45.71,46.19,46.67,47.14,47.62,48.1,48.57,49.05,49.52,50.0,50.48,50.95,51.43,51.9,52.38,52.86,53.33,53.81,54.29,54.76,55.24,55.71,56.19,56.67,57.14,57.62,58.1,58.57,59.05,59.52,60.0,60.48,60.95,61.43,61.9,62.38,62.86,63.33,63.81,64.29,64.76,65.24,65.71,66.19,66.67,67.14,67.62,68.1,68.57,69.05,69.52,70.0,70.48,70.95,71.43,71.9,72.38,72.86,73.33,73.81,74.29,74.76,75.24,75.71,76.19,76.67,77.14,77.62,78.1,78.57,79.05,79.52,80.0,80.48,80.95,81.43,81.9,82.38,82.86,83.33,83.81,84.29,84.76,85.24,85.71,86.19,86.67,87.14,87.62,88.1,88.57,89.05,89.52,90.0,90.48,90.95,91.43,91.9,92.38,92.86,93.33,93.81,94.29,94.76,95.24,95.71,96.19,96.67,97.14,97.62,98.1,98.57,99.05,99.52,100.0],"y":[0.0,2.8,7.16,5.62,6.03,-1.33,-1.12,7.87,0.33,1.18,3.92,4.18,3.71,5.07,9.07,32.42,32.93,35.52,30.71,36.02,37.66,27.96,30.71,22.04,40.43,29.1,29.02,41.35,40.26,43.61,42.96,39.42,41.08,27.15,38.96,41.49,40.58,35.07,34.42,31.58,37.44,37.2,40.07,44.68,44.08,46.5,47.23,36.45,45.71,64.17,52.19,60.91,50.79,63.6,62.85,79.46,100.0,79.81,81.18,86.02,83.64,86.98,82.24,85.67,80.43,79.26,70.66,58.82,67.07,65.56,61.37,35.87,32.9,31.43,31.23,31.75,37.44,40.01,41.03,45.24,45.99,38.85,43.7,46.5,39.88,34.1,35.78,35.24,34.1,27.67,29.67,30.04,29.89,28.18,29.64,27.47,24.76,27.8,27.92,34.09,28.68,27.51,34.67,38.19,36.41,51.16,34.45,44.57,38.79,34.29,36.64,44.38,45.48,45.52,30.71,26.11,30.38,30.95,31.6,36.22,33.91,32.52,32.85,41.22,43.53,39.6,35.26,35.76,47.53,52.58,39.63,32.01,41.68,49.23,48.72,38.32,38.69,35.61,33.28,36.62,42.14,53.54,38.27,39.1,27.87,13.56,11.83,17.28,35.58,42.01,35.27,35.95,41.07,35.64,32.8,43.87,50.45,47.87,47.51,56.04,55.35,59.79,57.17,63.49,64.87,56.93,59.05,58.62,54.94,60.55,57.44,58.17,57.32,57.28,54.49,57.3,54.03,60.86,60.01,50.9,55.75,57.2,58.56,63.09,57.31,62.07,52.94,54.16,43.83,46.47,43.75,49.26,44.17,48.64,44.98,45.39,43.07,43.78,45.31,44.95,46.23,44.77,47.23,44.3,46.57,46.69,40.71,40.84,47.51,48.9,45.34],"peak_pos":26.7},{"name":"Hydrex","x":[0.0,1.52,3.03,4.55,6.06,7.58,9.09,10.61,12.12,13.64,15.15,16.67,18.18,19.7,21.21,22.73,24.24,25.76,27.27,28.79,30.3,31.82,33.33,34.85,36.36,37.88,39.39,40.91,42.42,43.94,45.45,46.97,48.48,50.0,51.52,53.03,54.55,56.06,57.58,59.09,60.61,62.12,63.64,65.15,66.67,68.18,69.7,71.21,72.73,74.24,75.76,77.27,78.79,80.3,81.82,83.33,84.85,86.36,87.88,89.39,90.91,92.42,93.94,95.45,96.97,98.48,100.0],"y":[0.0,9.79,8.44,10.5,11.18,7.21,29.28,38.48,34.02,30.88,35.77,36.15,30.0,25.32,30.84,29.93,21.96,23.24,41.22,56.01,82.43,99.79,75.97,78.48,83.88,100.0,82.22,50.9,53.94,51.66,50.88,30.79,-15.3,-24.65,-6.88,-16.63,-23.51,-22.76,-25.3,-23.76,-32.32,-46.75,-51.67,-59.63,-68.05,-67.95,-75.69,-86.99,-104.17,-116.09,-117.83,-118.0,-123.8,-125.84,-126.05,-127.53,-137.92,-138.68,-139.55,-150.51,-150.58,-155.97,-126.71,-115.46,-107.37,-122.86,-169.51],"peak_pos":37.9},{"name":"Oku","x":[0.0,1.39,2.78,4.17,5.56,6.94,8.33,9.72,11.11,12.5,13.89,15.28,16.67,18.06,19.44,20.83,22.22,23.61,25.0,26.39,27.78,29.17,30.56,31.94,33.33,34.72,36.11,37.5,38.89,40.28,41.67,43.06,44.44,45.83,47.22,48.61,50.0,51.39,52.78,54.17,55.56,56.94,58.33,59.72,61.11,62.5,63.89,65.28,66.67,68.06,69.44,70.83,72.22,73.61,75.0,76.39,77.78,79.17,80.56,81.94,83.33,84.72,86.11,87.5,88.89,90.28,91.67,93.06,94.44,95.83,97.22,98.61,100.0],"y":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,1.34,10.13,26.2,36.08,45.12,50.78,53.48,60.94,66.36,73.38,77.76,90.28,91.79,93.17,98.63,99.99,100.0],"peak_pos":100.0},{"name":"Super DCA","x":[0.0,0.86,1.72,2.59,3.45,4.31,5.17,6.03,6.9,7.76,8.62,9.48,10.34,11.21,12.07,12.93,13.79,14.66,15.52,16.38,17.24,18.1,18.97,19.83,20.69,21.55,22.41,23.28,24.14,25.0,25.86,26.72,27.59,28.45,29.31,30.17,31.03,31.9,32.76,33.62,34.48,35.34,36.21,37.07,37.93,38.79,39.66,40.52,41.38,42.24,43.1,43.97,44.83,45.69,46.55,47.41,48.28,49.14,50.0,50.86,51.72,52.59,53.45,54.31,55.17,56.03,56.9,57.76,58.62,59.48,60.34,61.21,62.07,62.93,63.79,64.66,65.52,66.38,67.24,68.1,68.97,69.83,70.69,71.55,72.41,73.28,74.14,75.0,75.86,76.72,77.59,78.45,79.31,80.17,81.03,81.9,82.76,83.62,84.48,85.34,86.21,87.07,87.93,88.79,89.66,90.52,91.38,92.24,93.1,93.97,94.83,95.69,96.55,97.41,98.28,99.14,100.0],"y":[0.0,0.0,19.51,24.12,26.8,27.92,29.09,29.93,32.49,32.53,32.97,35.74,35.7,36.02,36.46,36.38,36.62,37.58,41.91,43.27,65.87,67.47,67.59,62.26,61.82,61.86,61.94,64.38,64.42,91.19,93.67,93.07,89.38,90.22,90.26,90.3,90.18,90.14,91.27,91.83,92.07,93.03,93.11,96.15,91.95,91.91,98.76,99.76,100.0,98.04,96.07,96.47,96.67,96.71,97.76,97.76,99.52,99.12,95.31,71.71,71.55,71.11,71.15,69.99,69.55,69.55,74.24,69.67,69.83,69.79,69.59,69.71,69.75,69.59,67.71,67.35,66.87,66.79,66.67,66.47,66.63,64.86,64.62,64.62,64.22,64.14,63.46,63.58,63.62,62.58,60.7,60.66,60.66,60.22,58.21,57.85,57.81,58.13,56.41,56.41,56.21,56.69,56.69,56.69,58.05,57.45,57.45,57.45,57.45,56.81,56.77,56.93,56.77,55.89,56.13,55.73,55.69],"peak_pos":41.4}],"flow":[{"label":"Delivered to the nine that ran a program","value":2210000,"color":"#2e1b45"},{"label":"Delivered to grants that never ran one","value":340000,"color":"#f98c82"},{"label":"Sent to the claim contract, never claimed","value":1268000,"color":"#f3e3a6"},{"label":"Never released","value":2472000,"color":"#efeaf6"}],"price":{"x":["2025-10-01","2025-10-02","2025-10-03","2025-10-04","2025-10-05","2025-10-06","2025-10-07","2025-10-08","2025-10-09","2025-10-10","2025-10-11","2025-10-12","2025-10-13","2025-10-14","2025-10-15","2025-10-16","2025-10-17","2025-10-18","2025-10-19","2025-10-20","2025-10-21","2025-10-22","2025-10-23","2025-10-24","2025-10-25","2025-10-26","2025-10-27","2025-10-28","2025-10-29","2025-10-30","2025-10-31","2025-11-01","2025-11-02","2025-11-03","2025-11-04","2025-11-05","2025-11-06","2025-11-07","2025-11-08","2025-11-09","2025-11-10","2025-11-11","2025-11-12","2025-11-13","2025-11-14","2025-11-15","2025-11-16","2025-11-17","2025-11-18","2025-11-19","2025-11-20","2025-11-21","2025-11-22","2025-11-23","2025-11-24","2025-11-25","2025-11-26","2025-11-27","2025-11-28","2025-11-29","2025-11-30","2025-12-01","2025-12-02","2025-12-03","2025-12-04","2025-12-05","2025-12-06","2025-12-07","2025-12-08","2025-12-09","2025-12-10","2025-12-11","2025-12-12","2025-12-13","2025-12-14","2025-12-15","2025-12-16","2025-12-17","2025-12-18","2025-12-19","2025-12-20","2025-12-21","2025-12-22","2025-12-23","2025-12-24","2025-12-25","2025-12-26","2025-12-27","2025-12-28","2025-12-29","2025-12-30","2025-12-31","2026-01-01","2026-01-02","2026-01-03","2026-01-04","2026-01-05","2026-01-06","2026-01-07","2026-01-08","2026-01-09","2026-01-10","2026-01-11","2026-01-12","2026-01-13","2026-01-14","2026-01-15","2026-01-16","2026-01-17","2026-01-18","2026-01-19","2026-01-20","2026-01-21","2026-01-22","2026-01-23","2026-01-24","2026-01-25","2026-01-26","2026-01-27","2026-01-28","2026-01-29","2026-01-30","2026-01-31","2026-02-01","2026-02-02","2026-02-03","2026-02-04","2026-02-05","2026-02-06","2026-02-07","2026-02-08","2026-02-09","2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-14","2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23","2026-02-24","2026-02-25","2026-02-26","2026-02-27","2026-02-28","2026-03-01","2026-03-02","2026-03-03","2026-03-04","2026-03-05","2026-03-06","2026-03-07","2026-03-08","2026-03-09","2026-03-10","2026-03-11","2026-03-12","2026-03-13","2026-03-14","2026-03-15","2026-03-16","2026-03-17","2026-03-18","2026-03-19","2026-03-20","2026-03-21","2026-03-22","2026-03-23","2026-03-24","2026-03-25","2026-03-26","2026-03-27","2026-03-28","2026-03-29","2026-03-30","2026-03-31","2026-04-01","2026-04-02","2026-04-03","2026-04-04","2026-04-05","2026-04-06","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-11","2026-04-12","2026-04-13","2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-18","2026-04-19","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24","2026-04-25","2026-04-26","2026-04-27","2026-04-28","2026-04-29","2026-04-30","2026-05-01","2026-05-02","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-05-07","2026-05-08","2026-05-09","2026-05-10","2026-05-11","2026-05-12","2026-05-13","2026-05-14","2026-05-15","2026-05-16","2026-05-17","2026-05-18","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-23","2026-05-24","2026-05-25","2026-05-26","2026-05-27","2026-05-28","2026-05-29","2026-05-30","2026-05-31","2026-06-01","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-06","2026-06-07","2026-06-08","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-13","2026-06-14","2026-06-15","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-20","2026-06-21","2026-06-22","2026-06-23","2026-06-24","2026-06-25","2026-06-26","2026-06-27","2026-06-28","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13","2026-09-14","2026-09-15"],"y":[0.67054,0.70499,0.75128,0.74469,0.72455,0.71889,0.75829,0.71225,0.731,0.70729,0.50415,0.45646,0.4881,0.50413,0.48531,0.45658,0.42731,0.41959,0.42766,0.43864,0.44746,0.43334,0.41961,0.4334,0.44817,0.44678,0.4648,0.45188,0.43584,0.44033,0.40023,0.39886,0.41672,0.42085,0.3525,0.34612,0.37259,0.36419,0.42302,0.42303,0.42815,0.44355,0.40606,0.39906,0.39043,0.37835,0.38945,0.38352,0.36469,0.38024,0.37473,0.3604,0.30726,0.30239,0.3014,0.31872,0.32432,0.32495,0.33382,0.33131,0.32705,0.31945,0.28729,0.31657,0.32812,0.31873,0.30096,0.3142,0.3046,0.31812,0.33864,0.32378,0.31395,0.30725,0.31571,0.30106,0.29276,0.29319,0.273,0.26041,0.27958,0.27832,0.27222,0.27135,0.27037,0.26336,0.25202,0.26755,0.27828,0.27347,0.26882,0.27173,0.26768,0.29635,0.30569,0.31024,0.31889,0.32957,0.33174,0.31697,0.31439,0.31465,0.31747,0.3148,0.30867,0.36623,0.35116,0.34123,0.33936,0.34657,0.32485,0.31951,0.29969,0.308,0.30679,0.30416,0.3035,0.28624,0.29756,0.3013,0.30106,0.26928,0.26232,0.2338,0.22751,0.22976,0.21206,0.21905,0.1816,0.19739,0.19655,0.19052,0.18896,0.18284,0.17764,0.1827,0.18943,0.19708,0.18923,0.19012,0.18687,0.16527,0.13935,0.12853,0.12845,0.12242,0.1217,0.11824,0.12385,0.11939,0.11979,0.1224,0.12166,0.12464,0.12651,0.1286,0.12519,0.12038,0.11629,0.11538,0.11839,0.1187,0.12037,0.12007,0.1237,0.12387,0.12811,0.13761,0.1361,0.12633,0.12149,0.1238,0.11815,0.11454,0.11337,0.11382,0.11339,0.10864,0.10409,0.10238,0.10179,0.10584,0.11049,0.1101,0.10642,0.11007,0.11049,0.11019,0.10977,0.11883,0.11493,0.11392,0.11513,0.11436,0.10692,0.11611,0.11131,0.11978,0.13235,0.13447,0.12596,0.12027,0.12402,0.12324,0.12122,0.12163,0.12552,0.12506,0.1259,0.12238,0.12117,0.11971,0.12029,0.12078,0.1254,0.12316,0.12394,0.12859,0.1423,0.14773,0.17225,0.16352,0.16328,0.15702,0.15214,0.146,0.1448,0.13666,0.13307,0.12818,0.1293,0.12587,0.12888,0.1322,0.12674,0.13017,0.12539,0.12964,0.12773,0.12374,0.11875,0.1186,0.12022,0.11834,0.12369,0.11552,0.12295,0.11201,0.09747,0.09373,0.09709,0.09581,0.09679,0.091,0.09503,0.09962,0.10705,0.10849,0.10863,0.10882,0.10864,0.10923,0.10364,0.10361,0.09942,0.10052,0.1011,0.10431,0.10553,0.10558,0.10068,0.09989,0.10017,0.09595,0.09455,0.09872,0.10705,0.10752,0.10836,0.1072,0.10208,0.09938,0.10199,0.10336,0.10189,0.10021,0.09818,0.10162,0.10212,0.09856,0.096,0.09522,0.09493,0.09416,0.09791,0.09688,0.09249,0.0924,0.09221,0.09507,0.08703,0.08915,0.08921,0.0879,0.08508,0.08297,0.08651,0.08805,0.08892,0.08794,0.08618,0.08601,0.08879,0.08793,0.09131,0.09115,0.08587,0.08876,0.08631,0.08482,0.08339,0.08417,0.08198,0.08999,0.09828,0.1072,0.10891,0.11181,0.10761,0.10128,0.09894,0.09724,0.09012,0.08871,0.08635,0.09364,0.09519,0.0992,0.10118,0.09795,0.10757,0.11019,0.11011,0.10546,0.09937,0.09392,0.09558,0.09564,0.09472,0.10304],"marks":[["earliest claim","2025-10-07",0.7064],["earliest start","2025-10-15",0.4572],["mean start","2025-12-15",0.2867],["mean end","2026-04-24",0.1293],["latest end","2026-09-15",0.0932]]},"small":[{"name":"Velodrome Finance","x":["2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-14","2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23","2026-02-24","2026-02-25","2026-02-26","2026-02-27","2026-02-28","2026-03-01","2026-03-02","2026-03-03","2026-03-04","2026-03-05","2026-03-06","2026-03-07","2026-03-08","2026-03-09","2026-03-10","2026-03-11","2026-03-12","2026-03-13","2026-03-14","2026-03-15","2026-03-16","2026-03-17","2026-03-18","2026-03-19","2026-03-20","2026-03-21","2026-03-22","2026-03-23","2026-03-24","2026-03-25","2026-03-26","2026-03-27","2026-03-28","2026-03-29","2026-03-30","2026-03-31","2026-04-01","2026-04-02","2026-04-03","2026-04-04","2026-04-05","2026-04-06","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-11","2026-04-12","2026-04-13","2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-18","2026-04-19","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24","2026-04-25","2026-04-26","2026-04-27","2026-04-28","2026-04-29","2026-04-30","2026-05-01","2026-05-02","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-05-07","2026-05-08","2026-05-09","2026-05-10","2026-05-11","2026-05-12","2026-05-13","2026-05-14","2026-05-15","2026-05-16","2026-05-17","2026-05-18","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-23","2026-05-24","2026-05-25","2026-05-26","2026-05-27","2026-05-28","2026-05-29","2026-05-30","2026-05-31","2026-06-01","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-06","2026-06-07","2026-06-08","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-13","2026-06-14","2026-06-15","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-20","2026-06-21","2026-06-22","2026-06-23","2026-06-24","2026-06-25","2026-06-26","2026-06-27","2026-06-28","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13","2026-09-14","2026-09-15"],"y":[0.0,196831.0,468623.0,1805558.0,1613596.0,2618004.0,2082309.0,2739813.0,1743840.0,1046362.0,1246764.0,1039065.0,1408036.0,1331534.0,796113.0,6045628.0,5979799.0,6327439.0,6317616.0,5873694.0,6375644.0,3207203.0,6763143.0,6497421.0,6982657.0,7050173.0,6721245.0,6850817.0,6533761.0,7668356.0,7919021.0,8818022.0,9477444.0,8584958.0,9250685.0,9666105.0,9429173.0,10232216.0,10446680.0,9368715.0,9230312.0,9885517.0,9011249.0,9115415.0,8075563.0,4386565.0,4708070.0,4436559.0,4024062.0,1444798.0,4499669.0,4112136.0,3794160.0,3588718.0,1685299.0,3795346.0,3953238.0,4840530.0,4598361.0,4107762.0,2106095.0,3762204.0,4211977.0,2355854.0,2201726.0,1445321.0,3199264.0,1345558.0,796247.0,958306.0,-41517.0,6669.0,141164.0,1269150.0,1134864.0,1146773.0,1943073.0,2624156.0,2636949.0,1821166.0,1540495.0,2020957.0,1687611.0,3901063.0,2885885.0,4129414.0,1525243.0,1965613.0,2668788.0,2436799.0,1725867.0,1934536.0,1366835.0,1546992.0,1433191.0,1966237.0,267826.0,1099221.0,1042338.0,1383007.0,1507897.0,1597557.0,1499109.0,1392081.0,1823937.0,2573824.0,1185622.0,271131.0,569274.0,659930.0,700141.0,645197.0,-337538.0,-5476323.0,-3902005.0,-2005821.0,-2494604.0,-1891398.0,-1719351.0,-1002145.0,-1011747.0,-562671.0,556190.0,427199.0,-108214.0,844125.0,611282.0,907051.0,-585332.0,-141270.0,77372.0,-245414.0,-235095.0,1481264.0,-1675850.0,579095.0,884229.0,-983082.0,-130110.0,-129599.0,663783.0,653874.0,608303.0,-357540.0,-1170210.0,-1480862.0,773685.0,212123.0,-1740894.0,433947.0,5423.0,70536.0,611217.0,-50745.0,-826098.0,-773587.0,-257063.0,-168277.0,-208058.0,-503554.0,-328750.0,-411586.0,-419350.0,-2928530.0,-2914727.0,-3133098.0,-3420228.0,-3041652.0,-3548582.0,-3165936.0,-2876720.0,-2947990.0,-2780890.0,-2714255.0,-2674867.0,-3348768.0,-3194073.0,-3450530.0,-3333302.0,-2836865.0,-2877003.0,-2934527.0,-3235721.0,-2529131.0,-2283362.0,-196094.0,183952.0,-209598.0,687583.0,128957.0,-989654.0,-472270.0,-1112417.0,-925529.0,-291736.0,211800.0,-859865.0,-910404.0,-817376.0,-238848.0,91581.0,-319573.0,15074.0,370316.0,-491001.0,1182791.0,369004.0,503519.0,1087471.0,-30287.0,-383858.0,-393880.0,-516153.0,-628292.0,-395893.0,273433.0,387235.0,-400786.0],"inw":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true],"peak":10446680.0,"peak_date":"2026-03-20","end":-463690.01,"ongoing":true},{"name":"40acres.finance","x":["2025-10-15","2025-10-16","2025-10-17","2025-10-18","2025-10-19","2025-10-20","2025-10-21","2025-10-22","2025-10-23","2025-10-24","2025-10-25","2025-10-26","2025-10-27","2025-10-28","2025-10-29","2025-10-30","2025-10-31","2025-11-01","2025-11-02","2025-11-03","2025-11-04","2025-11-05","2025-11-06","2025-11-07","2025-11-08","2025-11-09","2025-11-10","2025-11-11","2025-11-12","2025-11-13","2025-11-14","2025-11-15","2025-11-16","2025-11-17","2025-11-18","2025-11-19","2025-11-20","2025-11-21","2025-11-22","2025-11-23","2025-11-24","2025-11-25","2025-11-26","2025-11-27","2025-11-28","2025-11-29","2025-11-30","2025-12-01","2025-12-02","2025-12-03","2025-12-04","2025-12-05","2025-12-06","2025-12-07","2025-12-08","2025-12-09","2025-12-10","2025-12-11","2025-12-12","2025-12-13","2025-12-14","2025-12-15","2025-12-16","2025-12-17","2025-12-18","2025-12-19","2025-12-20","2025-12-21","2025-12-22","2025-12-23","2025-12-24","2025-12-25","2025-12-26","2025-12-27","2025-12-28","2025-12-29","2025-12-30","2025-12-31","2026-01-01","2026-01-02","2026-01-03","2026-01-04","2026-01-05","2026-01-06","2026-01-07","2026-01-08","2026-01-09","2026-01-10","2026-01-11","2026-01-12","2026-01-13","2026-01-14","2026-01-15","2026-01-16","2026-01-17","2026-01-18","2026-01-19","2026-01-20","2026-01-21","2026-01-22","2026-01-23","2026-01-24","2026-01-25","2026-01-26","2026-01-27","2026-01-28","2026-01-29","2026-01-30","2026-01-31","2026-02-01","2026-02-02","2026-02-03","2026-02-04","2026-02-05","2026-02-06","2026-02-07","2026-02-08","2026-02-09","2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-14","2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23","2026-02-24","2026-02-25","2026-02-26"],"y":[0.0,-686633.0,832721.0,611521.0,1028000.0,1265767.0,1313708.0,1428746.0,2492724.0,2523185.0,2555839.0,1161799.0,626366.0,295726.0,904044.0,946211.0,1108235.0,1448042.0,484392.0,1232753.0,958505.0,-438763.0,-219129.0,-674022.0,-848339.0,-1170984.0,-932585.0,-1027019.0,-1126661.0,-1652539.0,-513044.0,376009.0,676231.0,678086.0,-166807.0,508235.0,707186.0,-295846.0,-150281.0,-29600.0,176506.0,403754.0,1231975.0,983631.0,626121.0,555597.0,-380119.0,-118248.0,1068636.0,562442.0,1583500.0,1728365.0,1943577.0,1840991.0,1749390.0,1380400.0,1365857.0,1807935.0,2219981.0,2231976.0,2170725.0,903094.0,786472.0,566869.0,1420982.0,1603323.0,1708388.0,1402204.0,1531953.0,1575752.0,1260342.0,1503341.0,1492087.0,2170107.0,2093708.0,2086788.0,1910963.0,1196142.0,776888.0,703768.0,555415.0,1235708.0,964492.0,912342.0,999244.0,1882401.0,1850709.0,1919939.0,1836702.0,1671072.0,1962443.0,1919397.0,1379971.0,3234005.0,3266367.0,2455081.0,2514290.0,2765891.0,3288248.0,5929600.0,5799880.0,6390426.0,7150411.0,7032734.0,6757791.0,6668392.0,6095925.0,6479077.0,7251773.0,7082123.0,6875808.0,6526156.0,6676936.0,6746677.0,6496742.0,6990855.0,6955272.0,6813867.0,6401660.0,6361704.0,6563262.0,7054621.0,7066021.0,7719296.0,8869140.0,8828793.0,8828244.0,9298788.0,9388567.0,9397697.0,9548267.0,9598521.0,10011142.0,9491240.0,9710628.0],"inw":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"peak":7150411.0,"peak_date":"2026-01-25","end":6757802.86,"ongoing":false},{"name":"Curve Lending","x":["2026-04-17","2026-04-18","2026-04-19","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24","2026-04-25","2026-04-26","2026-04-27","2026-04-28","2026-04-29","2026-04-30","2026-05-01","2026-05-02","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-05-07","2026-05-08","2026-05-09","2026-05-10","2026-05-11","2026-05-12","2026-05-13","2026-05-14","2026-05-15","2026-05-16","2026-05-17","2026-05-18","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-23","2026-05-24","2026-05-25","2026-05-26","2026-05-27","2026-05-28","2026-05-29","2026-05-30","2026-05-31","2026-06-01","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-06","2026-06-07","2026-06-08","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-13","2026-06-14","2026-06-15","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-20","2026-06-21","2026-06-22","2026-06-23","2026-06-24","2026-06-25","2026-06-26","2026-06-27","2026-06-28","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13","2026-09-14","2026-09-15"],"y":[0.0,625.0,662.0,-27.0,-261.0,438.0,642.0,863.0,938.0,792.0,318.0,199.0,345.0,-60.0,142.0,144.0,-454.0,-384.0,-476.0,815.0,1226.0,2058.0,1792.0,1036.0,-1112.0,-1229.0,-1068.0,-1254.0,-575.0,193.0,560.0,165.0,116.0,256.0,150.0,755.0,530.0,-9443.0,-8378.0,-8358.0,-8135.0,-8190.0,-8520.0,-8344.0,-8522.0,-7724.0,-6749.0,-6500.0,-5069.0,-4684.0,-6150.0,-7090.0,-7312.0,-12020.0,-14461.0,-15025.0,-14428.0,-14122.0,-15612.0,-16054.0,-15654.0,94993.0,1509537.0,2042562.0,2226179.0,2268975.0,2457200.0,2431392.0,2967702.0,2964197.0,3366686.0,3562009.0,3558131.0,3513974.0,3716970.0,3571354.0,3571275.0,3722436.0,3723287.0,3724497.0,3724861.0,3777080.0,2972650.0,3072943.0,3063141.0,3074058.0,3122506.0,2949025.0,3129817.0,3145982.0,2891926.0,2889817.0,2860158.0,2866107.0,2586747.0,2654446.0,2747382.0,2739488.0,2722156.0,2724006.0,2709809.0,2708465.0,2699717.0,2689947.0,2704952.0,2625675.0,2404804.0,2394317.0,2342331.0,2161852.0,2027101.0,1974546.0,1958677.0,1869257.0,1732416.0,1361895.0,1373506.0,1436740.0,1436476.0,1409384.0,1408022.0,1409253.0,1368903.0,1342981.0,1310495.0,1300367.0,1242869.0,1296813.0,1275068.0,1275757.0,1224934.0,1225897.0,1229473.0,1196534.0,1196307.0,1202350.0,1181319.0,1150930.0,1094467.0,1056009.0,740374.0,688869.0,576492.0,576616.0,500732.0,483211.0,456601.0,458558.0,458580.0,448095.0,443608.0,442797.0],"inw":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true],"peak":3777080.0,"peak_date":"2026-07-07","end":442797.28,"ongoing":true},{"name":"Extrafi","x":["2025-11-27","2025-11-28","2025-11-29","2025-11-30","2025-12-01","2025-12-02","2025-12-03","2025-12-04","2025-12-05","2025-12-06","2025-12-07","2025-12-08","2025-12-09","2025-12-10","2025-12-11","2025-12-12","2025-12-13","2025-12-14","2025-12-15","2025-12-16","2025-12-17","2025-12-18","2025-12-19","2025-12-20","2025-12-21","2025-12-22","2025-12-23","2025-12-24","2025-12-25","2025-12-26","2025-12-27","2025-12-28","2025-12-29","2025-12-30","2025-12-31","2026-01-01","2026-01-02","2026-01-03","2026-01-04","2026-01-05","2026-01-06","2026-01-07","2026-01-08","2026-01-09","2026-01-10","2026-01-11","2026-01-12","2026-01-13","2026-01-14","2026-01-15","2026-01-16","2026-01-17","2026-01-18","2026-01-19","2026-01-20","2026-01-21","2026-01-22","2026-01-23","2026-01-24","2026-01-25","2026-01-26","2026-01-27","2026-01-28","2026-01-29","2026-01-30","2026-01-31","2026-02-01","2026-02-02","2026-02-03","2026-02-04","2026-02-05","2026-02-06","2026-02-07","2026-02-08","2026-02-09","2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-14","2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23","2026-02-24","2026-02-25","2026-02-26","2026-02-27","2026-02-28","2026-03-01","2026-03-02","2026-03-03","2026-03-04","2026-03-05","2026-03-06","2026-03-07","2026-03-08","2026-03-09","2026-03-10","2026-03-11","2026-03-12","2026-03-13","2026-03-14","2026-03-15","2026-03-16","2026-03-17","2026-03-18","2026-03-19","2026-03-20","2026-03-21","2026-03-22","2026-03-23","2026-03-24","2026-03-25","2026-03-26","2026-03-27","2026-03-28","2026-03-29","2026-03-30","2026-03-31","2026-04-01","2026-04-02","2026-04-03","2026-04-04","2026-04-05","2026-04-06","2026-04-07","2026-04-08"],"y":[0.0,309961.0,456394.0,519702.0,762799.0,794466.0,928607.0,909715.0,1151160.0,1040801.0,931302.0,1139911.0,1308216.0,1299919.0,1213322.0,1542344.0,1406085.0,1453600.0,1487201.0,1290711.0,1263110.0,860231.0,850807.0,861376.0,772863.0,776383.0,924610.0,902727.0,876250.0,885613.0,1027150.0,1104799.0,1119268.0,1050998.0,1062370.0,1072420.0,1078812.0,1034747.0,1342420.0,1475387.0,1474992.0,1294574.0,1315314.0,1297081.0,1291974.0,1323163.0,1387033.0,1568442.0,1423110.0,1278240.0,1279120.0,1280832.0,1256606.0,1227388.0,1229594.0,1214090.0,1288245.0,935059.0,963416.0,992094.0,1010372.0,2053514.0,2059448.0,1957941.0,1938285.0,817966.0,832906.0,983815.0,998994.0,983221.0,788133.0,1053242.0,498468.0,1038722.0,1015016.0,1010866.0,1011091.0,1022332.0,986394.0,934071.0,918930.0,918637.0,883330.0,930994.0,891548.0,870498.0,436631.0,392489.0,401743.0,407969.0,33384.0,-99187.0,-118806.0,-189576.0,-188791.0,-192797.0,-215778.0,-266609.0,-161619.0,-164950.0,-130898.0,-128524.0,-126636.0,-122458.0,-93554.0,-105165.0,-107718.0,-247424.0,-249751.0,-269432.0,-284837.0,-281422.0,-426147.0,-454294.0,-440623.0,-648513.0,-850547.0,-845241.0,-849407.0,-850713.0,-825346.0,-852356.0,-853530.0,-830711.0,-876338.0,-978097.0,-944872.0,-923743.0,-919113.0,-1120425.0,-983561.0,-1192133.0,-1213716.0],"inw":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"peak":2059448.0,"peak_date":"2026-01-28","end":-126635.85,"ongoing":false},{"name":"Truemarkets","x":["2025-11-12","2025-11-13","2025-11-14","2025-11-15","2025-11-16","2025-11-17","2025-11-18","2025-11-19","2025-11-20","2025-11-21","2025-11-22","2025-11-23","2025-11-24","2025-11-25","2025-11-26","2025-11-27","2025-11-28","2025-11-29","2025-11-30","2025-12-01","2025-12-02","2025-12-03","2025-12-04","2025-12-05","2025-12-06","2025-12-07","2025-12-08","2025-12-09","2025-12-10","2025-12-11","2025-12-12","2025-12-13","2025-12-14","2025-12-15","2025-12-16","2025-12-17","2025-12-18","2025-12-19","2025-12-20","2025-12-21","2025-12-22","2025-12-23","2025-12-24","2025-12-25","2025-12-26","2025-12-27","2025-12-28","2025-12-29","2025-12-30","2025-12-31","2026-01-01","2026-01-02","2026-01-03","2026-01-04","2026-01-05","2026-01-06","2026-01-07","2026-01-08","2026-01-09","2026-01-10","2026-01-11","2026-01-12","2026-01-13","2026-01-14","2026-01-15","2026-01-16","2026-01-17","2026-01-18","2026-01-19","2026-01-20","2026-01-21","2026-01-22","2026-01-23","2026-01-24","2026-01-25","2026-01-26","2026-01-27","2026-01-28","2026-01-29","2026-01-30","2026-01-31","2026-02-01","2026-02-02","2026-02-03","2026-02-04","2026-02-05","2026-02-06","2026-02-07","2026-02-08","2026-02-09","2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-14","2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23","2026-02-24","2026-02-25","2026-02-26","2026-02-27","2026-02-28","2026-03-01","2026-03-02","2026-03-03","2026-03-04","2026-03-05","2026-03-06","2026-03-07","2026-03-08","2026-03-09","2026-03-10","2026-03-11","2026-03-12","2026-03-13","2026-03-14","2026-03-15","2026-03-16","2026-03-17","2026-03-18","2026-03-19","2026-03-20","2026-03-21","2026-03-22","2026-03-23","2026-03-24","2026-03-25","2026-03-26","2026-03-27","2026-03-28","2026-03-29","2026-03-30","2026-03-31","2026-04-01","2026-04-02","2026-04-03","2026-04-04","2026-04-05","2026-04-06","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-11","2026-04-12","2026-04-13","2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-18","2026-04-19","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24","2026-04-25","2026-04-26","2026-04-27","2026-04-28","2026-04-29"],"y":[0.0,8986.0,208127.0,729749.0,730565.0,732975.0,823243.0,857284.0,857284.0,920593.0,920910.0,901298.0,913718.0,1313573.0,1314927.0,1318316.0,1723806.0,1724525.0,1776404.0,1706176.0,1709082.0,1596674.0,1596701.0,1596312.0,1597586.0,1593118.0,1593202.0,1593500.0,1583313.0,1584431.0,1584367.0,1585216.0,1585624.0,1586283.0,1586282.0,1597356.0,1598990.0,1604314.0,1604365.0,1604139.0,1605628.0,1599591.0,1599290.0,1602676.0,1603588.0,1633202.0,1633203.0,1633673.0,1634155.0,1631267.0,1626775.0,1599780.0,1598780.0,1611307.0,1448086.0,1458468.0,1460118.0,1466131.0,1459649.0,1460249.0,1524225.0,1524939.0,1533499.0,1557320.0,1569888.0,1570374.0,1570399.0,1570924.0,1571078.0,1571461.0,1568812.0,1569457.0,1559305.0,1559373.0,1547771.0,1548233.0,1548293.0,1548855.0,1549276.0,1549730.0,1548882.0,1548084.0,1549187.0,1550280.0,1549636.0,1490926.0,1492002.0,1491686.0,1492201.0,1492604.0,1492504.0,1491120.0,1503693.0,1504137.0,1504204.0,1504628.0,1500113.0,1464736.0,1463898.0,1464462.0,1464462.0,1464946.0,1465018.0,1465499.0,1465524.0,1465994.0,1466007.0,1466362.0,1466435.0,1467104.0,1113199.0,957105.0,954506.0,958407.0,958523.0,969404.0,969431.0,969742.0,968291.0,968474.0,946067.0,992042.0,994019.0,994783.0,994488.0,995133.0,1002063.0,1009040.0,981400.0,981017.0,978648.0,976482.0,984066.0,984901.0,984817.0,984711.0,984844.0,984975.0,984741.0,1037883.0,943705.0,936627.0,936648.0,901425.0,921787.0,919289.0,917287.0,928587.0,929083.0,929473.0,928811.0,929188.0,924436.0,924825.0,925375.0,926328.0,926090.0,925387.0,923604.0,924814.0,924483.0,924612.0,924672.0,924813.0,925985.0,-18981.0,-14309.0,-12503.0,-9421.0],"inw":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"peak":1776404.0,"peak_date":"2025-11-30","end":984741.84,"ongoing":false},{"name":"PancakeSwap","x":["2025-11-26","2025-11-27","2025-11-28","2025-11-29","2025-11-30","2025-12-01","2025-12-02","2025-12-03","2025-12-04","2025-12-05","2025-12-06","2025-12-07","2025-12-08","2025-12-09","2025-12-10","2025-12-11","2025-12-12","2025-12-13","2025-12-14","2025-12-15","2025-12-16","2025-12-17","2025-12-18","2025-12-19","2025-12-20","2025-12-21","2025-12-22","2025-12-23","2025-12-24","2025-12-25","2025-12-26","2025-12-27","2025-12-28","2025-12-29","2025-12-30","2025-12-31","2026-01-01","2026-01-02","2026-01-03","2026-01-04","2026-01-05","2026-01-06","2026-01-07","2026-01-08","2026-01-09","2026-01-10","2026-01-11","2026-01-12","2026-01-13","2026-01-14","2026-01-15","2026-01-16","2026-01-17","2026-01-18","2026-01-19","2026-01-20","2026-01-21","2026-01-22","2026-01-23","2026-01-24","2026-01-25","2026-01-26","2026-01-27","2026-01-28","2026-01-29","2026-01-30","2026-01-31","2026-02-01","2026-02-02","2026-02-03","2026-02-04","2026-02-05","2026-02-06","2026-02-07","2026-02-08","2026-02-09","2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-14","2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23","2026-02-24","2026-02-25","2026-02-26","2026-02-27","2026-02-28","2026-03-01","2026-03-02","2026-03-03","2026-03-04","2026-03-05","2026-03-06","2026-03-07","2026-03-08","2026-03-09","2026-03-10","2026-03-11","2026-03-12","2026-03-13","2026-03-14","2026-03-15","2026-03-16","2026-03-17","2026-03-18","2026-03-19","2026-03-20","2026-03-21","2026-03-22","2026-03-23","2026-03-24","2026-03-25","2026-03-26","2026-03-27","2026-03-28","2026-03-29","2026-03-30","2026-03-31","2026-04-01","2026-04-02","2026-04-03","2026-04-04","2026-04-05","2026-04-06","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-11","2026-04-12","2026-04-13","2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-18","2026-04-19","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24","2026-04-25","2026-04-26","2026-04-27","2026-04-28","2026-04-29","2026-04-30","2026-05-01","2026-05-02","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-05-07","2026-05-08","2026-05-09","2026-05-10","2026-05-11","2026-05-12","2026-05-13","2026-05-14","2026-05-15","2026-05-16","2026-05-17","2026-05-18","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-23","2026-05-24","2026-05-25","2026-05-26","2026-05-27","2026-05-28","2026-05-29","2026-05-30","2026-05-31","2026-06-01","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-06","2026-06-07","2026-06-08","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-13","2026-06-14","2026-06-15","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-20","2026-06-21","2026-06-22","2026-06-23","2026-06-24","2026-06-25","2026-06-26","2026-06-27","2026-06-28","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24"],"y":[0.0,42366.0,108275.0,85030.0,91293.0,-20091.0,-16999.0,119134.0,4945.0,17857.0,59311.0,63255.0,56084.0,76712.0,137215.0,490456.0,498195.0,537340.0,464702.0,545012.0,569844.0,423021.0,464677.0,333420.0,611726.0,440294.0,439060.0,625551.0,609128.0,659790.0,650016.0,596334.0,621510.0,410759.0,589380.0,627702.0,613995.0,530654.0,520806.0,477733.0,566386.0,562838.0,606189.0,675959.0,666965.0,703555.0,714542.0,551475.0,691590.0,970825.0,789630.0,921487.0,768368.0,962261.0,950957.0,1202226.0,1512961.0,1207501.0,1228218.0,1301390.0,1265374.0,1315999.0,1244201.0,1296191.0,1216812.0,1199192.0,1069086.0,889908.0,1014804.0,991870.0,928501.0,542719.0,497715.0,475456.0,472488.0,480395.0,566471.0,605373.0,620730.0,684416.0,695749.0,587728.0,661216.0,703458.0,603305.0,515932.0,541311.0,533104.0,515867.0,418694.0,448953.0,454509.0,452262.0,426403.0,448470.0,415613.0,374588.0,420601.0,422356.0,515758.0,433850.0,416212.0,524493.0,577754.0,550915.0,773982.0,521172.0,674349.0,586916.0,518762.0,554312.0,671408.0,688143.0,688673.0,464678.0,395001.0,459578.0,468200.0,478040.0,547931.0,512992.0,491942.0,497031.0,623595.0,658593.0,599207.0,533494.0,541019.0,719095.0,795525.0,599628.0,484360.0,630536.0,744868.0,737093.0,579800.0,585327.0,538773.0,503565.0,554007.0,637504.0,810046.0,579053.0,591523.0,421734.0,205208.0,179035.0,261386.0,538354.0,635646.0,533602.0,543893.0,621378.0,539283.0,496240.0,663671.0,763361.0,724222.0,718798.0,847896.0,837398.0,904644.0,864981.0,960648.0,981408.0,861302.0,893419.0,886946.0,831254.0,916049.0,869022.0,880125.0,867218.0,866606.0,824343.0,866980.0,817388.0,920857.0,907981.0,770059.0,843546.0,865372.0,886008.0,954530.0,867027.0,939058.0,801024.0,819478.0,663085.0,703123.0,661849.0,745285.0,668236.0,735929.0,680559.0,686720.0,651702.0,662368.0,685452.0,680072.0,699480.0,677291.0,714586.0,670183.0,704523.0,706449.0,615906.0,617876.0,718869.0,739828.0,685923.0,691495.0,754881.0,713497.0,721514.0,757486.0,759872.0,757409.0,788205.0,708195.0,744624.0,724800.0,565565.0,348024.0,329910.0,361844.0,133287.0,147919.0,112350.0,128329.0,134431.0,129822.0,155892.0,156503.0,125681.0,137439.0,141346.0,106321.0,86458.0,100615.0,95450.0],"inw":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"peak":1512961.0,"peak_date":"2026-01-21","end":685922.69,"ongoing":false},{"name":"Hydrex","x":["2025-12-19","2025-12-20","2025-12-21","2025-12-22","2025-12-23","2025-12-24","2025-12-25","2025-12-26","2025-12-27","2025-12-28","2025-12-29","2025-12-30","2025-12-31","2026-01-01","2026-01-02","2026-01-03","2026-01-04","2026-01-05","2026-01-06","2026-01-07","2026-01-08","2026-01-09","2026-01-10","2026-01-11","2026-01-12","2026-01-13","2026-01-14","2026-01-15","2026-01-16","2026-01-17","2026-01-18","2026-01-19","2026-01-20","2026-01-21","2026-01-22","2026-01-23","2026-01-24","2026-01-25","2026-01-26","2026-01-27","2026-01-28","2026-01-29","2026-01-30","2026-01-31","2026-02-01","2026-02-02","2026-02-03","2026-02-04","2026-02-05","2026-02-06","2026-02-07","2026-02-08","2026-02-09","2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-14","2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23","2026-02-24","2026-02-25","2026-02-26","2026-02-27","2026-02-28","2026-03-01","2026-03-02","2026-03-03","2026-03-04","2026-03-05","2026-03-06","2026-03-07","2026-03-08","2026-03-09","2026-03-10","2026-03-11","2026-03-12","2026-03-13","2026-03-14","2026-03-15","2026-03-16","2026-03-17","2026-03-18","2026-03-19","2026-03-20","2026-03-21","2026-03-22","2026-03-23","2026-03-24","2026-03-25"],"y":[0.0,18238.0,15717.0,19549.0,20823.0,13427.0,54518.0,71665.0,63360.0,57502.0,66618.0,67321.0,55859.0,47150.0,57440.0,55735.0,40894.0,43271.0,76760.0,104297.0,153502.0,185842.0,141469.0,146153.0,156204.0,186224.0,153119.0,94779.0,100456.0,96201.0,94743.0,57332.0,-28501.0,-45907.0,-12807.0,-30973.0,-43782.0,-42383.0,-47115.0,-44256.0,-60182.0,-87052.0,-96223.0,-111038.0,-126732.0,-126544.0,-140960.0,-161997.0,-193981.0,-216180.0,-219430.0,-219736.0,-230541.0,-234345.0,-234734.0,-237484.0,-256843.0,-258261.0,-259882.0,-280286.0,-280418.0,-290448.0,-235963.0,-215009.0,-199950.0,-228787.0,-315659.0,-315585.0,-329492.0,-309659.0,-335845.0,-335261.0,-335768.0,-349410.0,-358904.0,-357667.0,-359931.0,-373553.0,-373737.0,-372700.0,-582146.0,-588614.0,-588514.0,-588631.0,-588776.0,-590461.0,-589933.0,-591118.0,-591436.0,-591787.0,-598084.0,-597927.0,-597710.0,-597899.0,-597521.0,-597484.0,-597651.0],"inw":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"peak":186224.0,"peak_date":"2026-01-13","end":-315659.1,"ongoing":false},{"name":"Oku","x":["2025-11-17","2025-11-18","2025-11-19","2025-11-20","2025-11-21","2025-11-22","2025-11-23","2025-11-24","2025-11-25","2025-11-26","2025-11-27","2025-11-28","2025-11-29","2025-11-30","2025-12-01","2025-12-02","2025-12-03","2025-12-04","2025-12-05","2025-12-06","2025-12-07","2025-12-08","2025-12-09","2025-12-10","2025-12-11","2025-12-12","2025-12-13","2025-12-14","2025-12-15","2025-12-16","2025-12-17","2025-12-18","2025-12-19","2025-12-20","2025-12-21","2025-12-22","2025-12-23","2025-12-24","2025-12-25","2025-12-26","2025-12-27","2025-12-28","2025-12-29","2025-12-30","2025-12-31","2026-01-01","2026-01-02","2026-01-03","2026-01-04","2026-01-05","2026-01-06","2026-01-07","2026-01-08","2026-01-09","2026-01-10","2026-01-11","2026-01-12","2026-01-13","2026-01-14","2026-01-15","2026-01-16","2026-01-17","2026-01-18","2026-01-19","2026-01-20","2026-01-21","2026-01-22","2026-01-23","2026-01-24","2026-01-25","2026-01-26","2026-01-27","2026-01-28","2026-01-29","2026-01-30","2026-01-31","2026-02-01","2026-02-02","2026-02-03","2026-02-04","2026-02-05","2026-02-06","2026-02-07","2026-02-08","2026-02-09","2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-14","2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23","2026-02-24","2026-02-25","2026-02-26","2026-02-27"],"y":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,500.0,501.0,501.0,501.0,501.0,501.0,501.0,501.0,501.0,501.0,501.0,501.0,501.0,501.0,501.0,3778.0,9774.0,13463.0,16834.0,18947.0,19952.0,22736.0,24759.0,27378.0,29013.0,33683.0,34247.0,34760.0,36797.0,37308.0,37310.0,37312.0,37314.0,37316.0,36818.0,36820.0,98622.0,98629.0,98635.0,98641.0,98647.0,98653.0,98659.0,98664.0,98670.0,98675.0,98681.0,98686.0,98692.0,98698.0,98706.0,98714.0,98722.0,98729.0,98736.0,98742.0,98749.0,98755.0,98260.0,98266.0,98273.0],"inw":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"peak":37310.0,"peak_date":"2026-01-28","end":37309.68,"ongoing":false},{"name":"Super DCA","x":["2025-11-16","2025-11-17","2025-11-18","2025-11-19","2025-11-20","2025-11-21","2025-11-22","2025-11-23","2025-11-24","2025-11-25","2025-11-26","2025-11-27","2025-11-28","2025-11-29","2025-11-30","2025-12-01","2025-12-02","2025-12-03","2025-12-04","2025-12-05","2025-12-06","2025-12-07","2025-12-08","2025-12-09","2025-12-10","2025-12-11","2025-12-12","2025-12-13","2025-12-14","2025-12-15","2025-12-16","2025-12-17","2025-12-18","2025-12-19","2025-12-20","2025-12-21","2025-12-22","2025-12-23","2025-12-24","2025-12-25","2025-12-26","2025-12-27","2025-12-28","2025-12-29","2025-12-30","2025-12-31","2026-01-01","2026-01-02","2026-01-03","2026-01-04","2026-01-05","2026-01-06","2026-01-07","2026-01-08","2026-01-09","2026-01-10","2026-01-11","2026-01-12","2026-01-13","2026-01-14","2026-01-15","2026-01-16","2026-01-17","2026-01-18","2026-01-19","2026-01-20","2026-01-21","2026-01-22","2026-01-23","2026-01-24","2026-01-25","2026-01-26","2026-01-27","2026-01-28","2026-01-29","2026-01-30","2026-01-31","2026-02-01","2026-02-02","2026-02-03","2026-02-04","2026-02-05","2026-02-06","2026-02-07","2026-02-08","2026-02-09","2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-14","2026-02-15","2026-02-16","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-22","2026-02-23","2026-02-24","2026-02-25","2026-02-26","2026-02-27","2026-02-28","2026-03-01","2026-03-02","2026-03-03","2026-03-04","2026-03-05","2026-03-06","2026-03-07","2026-03-08","2026-03-09","2026-03-10","2026-03-11","2026-03-12","2026-03-13","2026-03-14","2026-03-15","2026-03-16","2026-03-17","2026-03-18","2026-03-19","2026-03-20","2026-03-21","2026-03-22","2026-03-23","2026-03-24","2026-03-25","2026-03-26","2026-03-27","2026-03-28","2026-03-29","2026-03-30","2026-03-31","2026-04-01","2026-04-02","2026-04-03","2026-04-04","2026-04-05","2026-04-06","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-11"],"y":[0.0,0.0,487.0,602.0,669.0,697.0,726.0,747.0,811.0,812.0,823.0,892.0,891.0,899.0,910.0,908.0,914.0,938.0,1046.0,1080.0,1644.0,1684.0,1687.0,1554.0,1543.0,1544.0,1546.0,1607.0,1608.0,2276.0,2338.0,2323.0,2231.0,2252.0,2253.0,2254.0,2251.0,2250.0,2278.0,2292.0,2298.0,2322.0,2324.0,2400.0,2295.0,2294.0,2465.0,2490.0,2496.0,2447.0,2398.0,2408.0,2413.0,2414.0,2440.0,2440.0,2484.0,2474.0,2379.0,1790.0,1786.0,1775.0,1776.0,1747.0,1736.0,1736.0,1853.0,1739.0,1743.0,1742.0,1737.0,1740.0,1741.0,1737.0,1690.0,1681.0,1669.0,1667.0,1664.0,1659.0,1663.0,1619.0,1613.0,1613.0,1603.0,1601.0,1584.0,1587.0,1588.0,1562.0,1515.0,1514.0,1514.0,1503.0,1453.0,1444.0,1443.0,1451.0,1408.0,1408.0,1403.0,1415.0,1415.0,1415.0,1449.0,1434.0,1434.0,1434.0,1434.0,1418.0,1417.0,1421.0,1417.0,1395.0,1401.0,1391.0,1390.0,1359.0,1359.0,1356.0,1356.0,1356.0,1356.0,1354.0,1354.0,1354.0,1351.0,1350.0,1350.0,1350.0,1350.0,1349.0,1350.0,1349.0,1349.0,1349.0,1349.0,1349.0,1349.0,1349.0,1349.0,1349.0,1349.0,1349.0,1349.0,1350.0,1350.0],"inw":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"peak":2496.0,"peak_date":"2026-01-03","end":1389.55,"ongoing":false}]};
+const T = { plum: '#2e1b45', muted: '#6b5a80', coral: '#f98c82', orchid: '#b341a8',
+             lilac: '#c6b2e8', peri: '#afbde8', mint: '#7fd6cd', butter: '#f3e3a6',
+             border: '#e5ddef', card: '#ffffff', signal: '#e5322c' };
+// Nine categorical hues for Figure 2, one per program. Nine series is past the
+// point where a hue set falls out of a design system, so this one was searched
+// for and checked against the all-pairs gates on a white surface: worst
+// colour-blind ΔE 8.1 (target ≥8), worst normal-vision ΔE 15.0 (floor ≥15),
+// every slot inside the lightness band and above the chroma floor. Muted on
+// purpose — they have to sit on the page without shouting. Colour is never the
+// only channel: the legend pairs each hue with its name, and hovering either
+// one greys the other eight.
+const SERIES = ['#b10071', '#006a9e', '#a3940b', '#908ffe', '#ff5a92',
+                '#16b3bc', '#1a6efe', '#7d5e00', '#06915d'];
+const FONT = { family: "'IBM Plex Sans', system-ui, sans-serif", size: 12, color: T.muted };
+const BASE = {
+  paper_bgcolor: T.card, plot_bgcolor: T.card, font: FONT,
+  margin: { l: 8, r: 16, t: 8, b: 34 }, showlegend: false, hovermode: 'closest',
+  xaxis: { gridcolor: T.border, zerolinecolor: T.border, tickfont: FONT },
+  yaxis: { gridcolor: T.border, zerolinecolor: T.border, tickfont: FONT },
+};
+const CONF = { displayModeBar: false, responsive: true };
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+// Plotly's `responsive` only resizes the canvas. Margins, subplot grids and
+// label density are fixed numbers that have to change with the breakpoint, so
+// each figure registers what it wants to do and gets called on load and again
+// whenever the page crosses 640px. Same breakpoint as the stylesheet.
+const NARROW = window.matchMedia('(max-width: 640px)');
+const fits = [];
+const onFit = (fn) => { fits.push(fn); fn(NARROW.matches); };
+NARROW.addEventListener('change', (e) => fits.forEach((fn) => fn(e.matches)));
+
+// Pointer type is not fixed for the life of the page — a tablet gets docked, a
+// laptop has a touchscreen — so this is watched rather than read once at load.
+const TOUCH = window.matchMedia('(hover: none)');
+const touches = [];
+const onTouch = (fn) => { touches.push(fn); fn(TOUCH.matches); };
+TOUCH.addEventListener('change', (e) => touches.forEach((fn) => fn(e.matches)));
+
+// The table is eleven columns wide and the column is not, so it scrolls at most
+// sizes — but say so only when it actually does.
+(function () {
+  const wrap = document.querySelector('.tablewrap'), hint = document.querySelector('.scrollhint');
+  if (!wrap || !hint) return;
+  const check = () => hint.setAttribute('data-show', wrap.scrollWidth > wrap.clientWidth + 1 ? '1' : '0');
+  new ResizeObserver(check).observe(wrap);
+  check();
+})();
+
+// Figure 1 — peak vs end, one row per grant
+(function () {
+  const d = D.peak_end, n = d.names.length, y = d.names.map((_, i) => n - i);
+  const traces = [];
+  for (let i = 0; i < n; i++) {
+    traces.push({ x: [d.end[i], d.peak[i]], y: [y[i], y[i]], type: 'scatter', mode: 'lines',
+      line: { color: T.border, width: 3 }, hoverinfo: 'skip', showlegend: false });
+  }
+  traces.push({ x: d.peak, y: y, type: 'scatter', mode: 'markers+text', name: 'Peak',
+    marker: { size: 11, color: T.coral, line: { color: T.card, width: 2 } },
+    text: d.peak_label, textposition: 'middle right', textfont: { family: FONT.family, size: 11, color: T.plum },
+    hovertemplate: '%{customdata} — peak %{x:$,.0f}<extra></extra>', customdata: d.names });
+  traces.push({ x: d.end, y: y, type: 'scatter', mode: 'markers', name: 'End',
+    marker: { size: 9, color: T.plum, line: { color: T.card, width: 2 } },
+    hovertemplate: '%{customdata} — end %{x:$,.0f}<extra></extra>', customdata: d.names });
+  traces[traces.length - 2].name = 'Peak in window';
+  traces[traces.length - 1].name = 'Where it ended';
+  const layout = clone(BASE);
+  // Sized to the content: the longest name measures 104px at 12px, the widest
+  // value label 45px at 11px. The old 132/176 were cut for a full-bleed figure
+  // and left a third of the card empty once everything moved to one column.
+  layout.margin = { l: 116, r: 64, t: 40, b: 36 };
+  layout.showlegend = true;
+  layout.legend = { orientation: 'h', y: 1.12, x: 1, xanchor: 'right',
+    font: { family: FONT.family, size: 11, color: T.plum } };
+  layout.xaxis = { ...layout.xaxis, tickprefix: '$', tickformat: '.2s', zeroline: true, zerolinewidth: 1.5 };
+  layout.yaxis = { ...layout.yaxis, tickmode: 'array', tickvals: y, ticktext: d.names,
+    tickfont: { family: FONT.family, size: 12, color: T.plum }, gridcolor: 'rgba(0,0,0,0)' };
+  const gd = document.getElementById('c-peak');
+  Plotly.newPlot(gd, traces, layout, CONF).then(() => {
+    // 132px of names plus 176px of value labels leaves about 20px of plot on a
+    // phone — every dot lands on the same vertical line. On narrow screens the
+    // names shrink and the peak values come off the chart into the hover.
+    const pk = traces.length - 2;
+    onFit((n) => {
+      Plotly.relayout(gd, {
+        'margin.l': n ? 92 : 116, 'margin.r': n ? 30 : 64, 'margin.t': n ? 52 : 40,
+        'legend.x': n ? 0 : 1, 'legend.xanchor': n ? 'left' : 'right',
+        'legend.y': n ? 1.1 : 1.12,
+        'yaxis.tickfont.size': n ? 10 : 12,
+        'xaxis.nticks': n ? 4 : 0,
+      });
+      Plotly.restyle(gd, { mode: n ? 'markers' : 'markers+text' }, [pk]);
+    });
+  });
+})();
+
+// Figure 2 — normalized curves
+(function () {
+  const MUTED = 'rgba(46,27,69,0.13)';   // the nine at rest once one is picked out
+  const n = D.curves.length;
+  const col = (i) => SERIES[i % SERIES.length];
+  const traces = D.curves.map((s, i) => ({
+    x: s.x, y: s.y, type: 'scatter', mode: 'lines', name: s.name,
+    line: { color: col(i), width: 1.7 },
+    hovertemplate: s.name + ' — %{y:.0f}% of its peak at %{x:.0f}% of the window<extra></extra>',
+  }));
+  const layout = clone(BASE);
+  layout.margin = { l: 56, r: 24, t: 26, b: 42 };
+  layout.xaxis = { ...layout.xaxis, title: { text: 'Share of the incentive window', font: FONT }, ticksuffix: '%', range: [0, 100] };
+  // Hydrex ends at -170% of its peak; clipping the axis keeps the shared shape readable
+  // and the small-multiples below show every curve in full.
+  layout.yaxis = { ...layout.yaxis, title: { text: 'Share of own peak', font: FONT },
+    ticksuffix: '%', zeroline: true, zerolinewidth: 1.5, range: [-105, 108] };
+  layout.annotations = [{ xref: 'paper', yref: 'paper', x: 0, y: -0.2, xanchor: 'left',
+    text: 'Hydrex continues to −170%. See the nine curves below',
+    showarrow: false, font: { family: FONT.family, size: 10, color: T.muted } }];
+  const gd = document.getElementById('c-curves'), key = document.getElementById('k-curves');
+
+  // One button per program, coloured like its line. Plotly's own legend has no
+  // hover event, so the legend is ours: pointing at a name lights that line,
+  // clicking pins it so it stays lit while you read the caption.
+  const btns = D.curves.map((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.setProperty('--sw', col(i));
+    b.setAttribute('aria-pressed', 'false');
+    b.innerHTML = '<span class="sw" aria-hidden="true"></span>';
+    b.appendChild(document.createTextNode(s.name));
+    key.appendChild(b);
+    return b;
+  });
+  const hint = document.createElement('span');
+  hint.className = 'hint';
+  onTouch((t) => { hint.textContent = t ? 'tap a name to follow one · tap it again to release'
+                                         : 'point to follow one · click to keep it lit'; });
+  key.appendChild(hint);
+
+  Plotly.newPlot(gd, traces, layout, CONF).then(() => {
+    let pinned = null, hovered = null;
+    const draw = () => {
+      const lit = hovered !== null ? hovered : pinned;
+      const idx = Array.from({ length: n }, (_, i) => i);
+      Plotly.restyle(gd, {
+        'line.color': idx.map((i) => (lit === null || i === lit) ? col(i) : MUTED),
+        'line.width': idx.map((i) => (lit !== null && i === lit) ? 3 : 1.7),
+      }, idx);
+      btns.forEach((b, i) => b.setAttribute('aria-pressed', String(i === pinned)));
+    };
+    btns.forEach((b, i) => {
+      b.addEventListener('mouseenter', () => { hovered = i; draw(); });
+      b.addEventListener('mouseleave', () => { hovered = null; draw(); });
+      b.addEventListener('focus', () => { hovered = i; draw(); });
+      b.addEventListener('blur', () => { hovered = null; draw(); });
+      // A tap fires mouseenter *and* click with no mouseleave to follow, so
+      // without clearing the hover here a second tap would unpin and the stale
+      // hover would keep the line lit — "tap again to release" doing nothing.
+      b.addEventListener('click', () => { hovered = null; pinned = pinned === i ? null : i; draw(); });
+    });
+    gd.on('plotly_hover', (e) => { hovered = e.points[0].curveNumber; draw(); });
+    gd.on('plotly_unhover', () => { hovered = null; draw(); });
+    onFit((n) => Plotly.relayout(gd, {
+      'margin.l': n ? 46 : 56, 'margin.r': n ? 12 : 24, 'margin.b': n ? 54 : 42,
+      'xaxis.nticks': n ? 4 : 0,
+      'annotations[0].y': n ? -0.26 : -0.2,
+    }));
+  });
+})();
+
+// Figure 3 — where the OP went
+(function () {
+  const traces = D.flow.map((b) => ({
+    x: [b.value], y: ['OP'], type: 'bar', orientation: 'h', name: b.label,
+    marker: { color: b.color, line: { color: b.color === T.secondary ? T.border : T.card, width: 2 } },
+    text: [(b.value / 1e6).toFixed(2) + 'M'], textposition: 'inside', insidetextanchor: 'middle',
+    textfont: { family: FONT.family, size: 12, color: b.color === T.plum ? T.card : T.plum },
+    hovertemplate: b.label + ': %{x:,.0f} OP<extra></extra>',
+  }));
+  const layout = clone(BASE);
+  layout.barmode = 'stack';
+  layout.margin = { l: 8, r: 8, t: 8, b: 96 };
+  layout.showlegend = true;
+  layout.legend = { orientation: 'h', y: -0.5, x: 0, traceorder: 'normal',
+    font: { family: FONT.family, size: 11, color: T.plum } };
+  layout.xaxis = { ...layout.xaxis, visible: false };
+  layout.yaxis = { ...layout.yaxis, visible: false };
+  const gd = document.getElementById('c-flow');
+  Plotly.newPlot(gd, traces, layout, CONF).then(() => {
+    // Every block keeps its number. The 340k one is 5% of the bar, so it fits
+    // inside on a wide screen and not on a phone — rather than guess a pixel
+    // threshold, the label is measured in the font it is drawn in, and a block
+    // too narrow to hold it gets the number above the bar on a leader instead
+    // of losing it. Width changes at every size, not just at the breakpoint,
+    // so this is driven by a ResizeObserver rather than the media query.
+    const total = D.flow.reduce((a, b) => a + b.value, 0);
+    const labels = D.flow.map((b) => (b.value / 1e6).toFixed(2) + 'M');
+    const ruler = document.createElement('canvas').getContext('2d');
+    ruler.font = '12px ' + FONT.family;
+    const needs = labels.map((l) => ruler.measureText(l).width + 16);
+    const mids = [];
+    D.flow.reduce((acc, b, i) => { mids[i] = acc + b.value / 2; return acc + b.value; }, 0);
+
+    let lastPx = -1;
+    const fitLabels = () => {
+      const px = gd.clientWidth - 16;
+      if (px <= 0 || px === lastPx) return;
+      lastPx = px;
+      const inside = D.flow.map((b, i) => (b.value / total) * px >= needs[i]);
+      const outside = labels
+        .map((l, i) => ({ l: l, i: i }))
+        .filter((o) => !inside[o.i])
+        .map((o) => ({
+          x: mids[o.i], y: 1, xref: 'x', yref: 'paper', text: o.l,
+          showarrow: true, arrowhead: 0, arrowwidth: 1, arrowcolor: T.border,
+          ax: 0, ay: -15, font: { family: FONT.family, size: 11, color: T.plum },
+        }));
+      Plotly.update(gd,
+        { text: labels.map((l, i) => (inside[i] ? [l] : [''])) },
+        { annotations: outside, 'margin.t': outside.length ? 32 : 8 },
+        D.flow.map((_, i) => i));
+    };
+    new ResizeObserver(fitLabels).observe(gd);
+    onFit((n) => {
+      Plotly.relayout(gd, { 'margin.b': n ? 116 : 96, 'legend.font.size': n ? 12 : 11 });
+      fitLabels();
+    });
+  });
+})();
+
+// Figure 4 — OP price
+(function () {
+  const p = D.price;
+  const traces = [
+    { x: p.x, y: p.y, type: 'scatter', mode: 'lines', line: { color: T.plum, width: 2 },
+       hovertemplate: '%{x} — $%{y:.3f}<extra></extra>' },
+    { x: p.marks.map((m) => m[1]), y: p.marks.map((m) => m[2]), type: 'scatter', mode: 'markers',
+       marker: { size: 10, color: T.coral, line: { color: T.card, width: 2 } },
+       text: p.marks.map((m) => m[0]),
+       hovertemplate: '%{text} — %{x}, $%{y:.3f}<extra></extra>' },
+  ];
+  const layout = clone(BASE);
+  layout.margin = { l: 56, r: 20, t: 26, b: 40 };
+  layout.yaxis = { ...layout.yaxis, tickprefix: '$', tickformat: '.2f', rangemode: 'tozero' };
+  layout.annotations = p.marks.map((m, i) => ({
+    x: m[1], y: m[2], text: m[0].replace('mean', 'avg'), showarrow: true, arrowhead: 0, arrowcolor: T.border,
+    ax: 0, ay: i % 2 === 0 ? -26 : -44, font: { family: FONT.family, size: 10, color: T.plum },
+  }));
+  const gd = document.getElementById('c-price');
+  Plotly.newPlot(gd, traces, layout, CONF).then(() => {
+    onFit((n) => Plotly.relayout(gd, Object.assign(
+      { 'margin.l': n ? 46 : 56, 'margin.r': n ? 10 : 20, 'xaxis.nticks': n ? 3 : 0 },
+      // Five dated markers in 330px; alternating the labels further apart is
+      // what keeps them off each other.
+      ...p.marks.map((_, i) => ({ ['annotations[' + i + '].ay']: n ? (i % 2 === 0 ? -22 : -46) : (i % 2 === 0 ? -26 : -44) })),
+    )));
+  });
+})();
+
+// The nine curves — small multiples
+(function () {
+  const gd = document.getElementById('c-small');
+  // Three columns on a phone puts each panel in ~90px: the titles run into each
+  // other and the date ticks overlap the neighbour. The grid is baked in at plot
+  // time, so the breakpoint rebuilds the figure rather than nudging margins.
+  const build = (narrow) => {
+  // Two columns, not three: in a 775px column three panels would be ~250px each
+  // and the titles would start colliding again. Two gives ~387px — wider than
+  // the three-up ever was on the old full-bleed page.
+  const cols = narrow ? 1 : 2, rows = Math.ceil(D.small.length / cols), traces = [], layout = clone(BASE);
+  layout.grid = { rows: rows, columns: cols, pattern: 'independent', roworder: 'top to bottom',
+                  ygap: narrow ? 0.34 : 0.3 };
+  layout.margin = { l: narrow ? 56 : 52, r: 16, t: 34, b: 34 };
+  layout.annotations = [];
+  layout.shapes = [];
+  D.small.forEach((s, i) => {
+    const ax = i === 0 ? '' : i + 1;
+    const inw = s.x.filter((_, k) => s.inw[k]);
+    traces.push({ x: s.x, y: s.y, type: 'scatter', mode: 'lines', xaxis: 'x' + ax, yaxis: 'y' + ax,
+      line: { color: T.plum, width: 1.6 },
+      hovertemplate: s.name + ' — %{x}: %{y:$,.0f}<extra></extra>' });
+    traces.push({ x: [s.peak_date], y: [s.peak], type: 'scatter', mode: 'markers', xaxis: 'x' + ax, yaxis: 'y' + ax,
+      marker: { size: 8, color: T.coral, line: { color: T.card, width: 2 } },
+      hovertemplate: s.name + ' — peak %{y:$,.0f} on %{x}<extra></extra>' });
+    layout['xaxis' + ax] = { gridcolor: T.border, showticklabels: true, nticks: narrow ? 4 : 3, tickfont: { ...FONT, size: 10 } };
+    layout['yaxis' + ax] = { gridcolor: T.border, zeroline: true, zerolinecolor: T.border,
+      tickprefix: '$', tickformat: '.2s', nticks: 4, tickfont: { ...FONT, size: 10 } };
+    layout.annotations.push({ text: s.name + (s.ongoing ? ' · interim' : ''), xref: 'x' + ax + ' domain',
+      yref: 'y' + ax + ' domain', x: 0, y: 1.16, showarrow: false, xanchor: 'left',
+      font: { family: FONT.family, size: 12, color: T.plum } });
+    // The 30 days after the incentive ended. It was drawn at 5% before, which is
+    // invisible on white — it needs a fill you can actually see, a rule on the
+    // day the incentive stopped, and a label, or it reads as nothing at all.
+    // The two interim programs have no tail: their window is still open.
+    if (inw.length && inw.length < s.x.length) {
+      const cut = inw[inw.length - 1], last = s.x[s.x.length - 1];
+      layout.shapes.push({ type: 'rect', xref: 'x' + ax, yref: 'y' + ax + ' domain',
+        x0: cut, x1: last, y0: 0, y1: 1,
+        fillcolor: 'rgba(107,90,128,0.13)', line: { width: 0 }, layer: 'below' });
+      layout.shapes.push({ type: 'line', xref: 'x' + ax, yref: 'y' + ax + ' domain',
+        x0: cut, x1: cut, y0: 0, y1: 1,
+        line: { color: T.muted, width: 1, dash: 'dot' }, layer: 'below' });
+      // Anchored just inside the rule, not at the last day — a right-anchored
+      // label sits on the subplot edge and gets clipped.
+      layout.annotations.push({ text: '+30d', xref: 'x' + ax, yref: 'y' + ax + ' domain',
+        x: cut, y: 0.03, xanchor: 'left', xshift: 4, yanchor: 'bottom', showarrow: false,
+        font: { family: FONT.family, size: 9, color: T.muted } });
+    }
+  });
+  return { traces, layout };
+  };
+  onFit((narrow) => {
+    const { traces, layout } = build(narrow);
+    // One panel per row needs the height the rows actually take, or nine charts
+    // get squeezed into the 640px the desktop grid was sized for.
+    gd.style.height = (narrow ? D.small.length * 185
+                              : Math.ceil(D.small.length / 2) * 215) + 'px';
+    Plotly.react(gd, traces, layout, CONF).then(() => Plotly.Plots.resize(gd));
+  });
+})();
+</script>
+</body>
+</html>
