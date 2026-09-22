@@ -164,10 +164,19 @@ Derives everything the general report quotes about the cohort — totals, $/OP,
 M1/M2 counts under the peak rule and under a best-7-day-average variant,
 program length, when the peak came, share of the peak given back,
 approval-to-start lag — from the committed outputs, the registry's budgets,
-targets and dates, and `data/karma_dates.json` (application and approval dates,
+targets and dates, and `data/karma_dates.json` (application dates,
 committed so the timing figures reproduce; refresh it with
 `scripts/karma_dates.py`, which needs `KARMA_API_KEY`). Per-grantee records include the in-window daily curve, so
 charts can be drawn from this one file.
+
+The timing stages use three dates, each with one source. **Application** is
+Karma's creation date. **Approval** is the report of the cycle that announced the
+grant (`CYCLE_APPROVED`; a conditional pass counts from its report). **Delivery**
+is the day the first tranche reached the grantee on-chain: registry `date_tx1`,
+written from Blockscout by the sheet's Apps Script (the claim from the Hedgey
+contract, or a direct payment), with `date_tx2` as the second tranche. The
+registry's `initial_delivery_date` is the tracker's own date; it is carried into
+`cohort.json` as `tracker_delivery_date` for context and feeds no figure.
 
 ### Publishing to a website
 
@@ -238,7 +247,7 @@ scripts/cohort_summary.py     reports/cohort.{json,csv} — the general report's
 scripts/export_site_json.py   output/ → site/data/grantees.json
 scripts/dune/*.sql            the Dune queries behind data/dune/*.csv
 data/rpc_cache.json           RPC response cache (ignored; ~150 MB; never run two writers at once)
-data/karma_dates.json         Karma application and approval dates (committed; dates and statuses only)
+data/karma_dates.json         Karma application dates (committed; dates and statuses only)
 data/dune/, data/rpc_daily/   committed event exports and daily quantities
 ```
 

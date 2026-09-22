@@ -63,16 +63,16 @@ OP_COIN = "optimism:0x4200000000000000000000000000000000000042"
 CHECKPOINT_TZ = dt.timezone(dt.timedelta(hours=-6))
 
 
-# Per-application dates from Karma, when scripts/karma_dates.py has fetched
-# them: creation, and the real approval date rather than a per-cycle proxy.
+# Application dates from Karma, when scripts/karma_dates.py has fetched them.
+# Karma's own `approved` status is not used: it records when someone moved the
+# record, which for 40acres was three weeks after the Cycle 41 report had
+# already listed the grant as passed.
 KARMA_DATES = REPO / "data" / "karma_dates.json"
 
 
-# The registry has no approval date: `initial_delivery_date` is the day the
-# council's wallet sent the OP to the Hedgey claim contract, which is a
-# consequence of approval, not approval itself. The grants of each cycle were
-# approved together and announced in that cycle's report, so the report's
-# publication date is the closest dated marker we have. Sources:
+# Approval is dated to the report of the cycle that announced the grant: one
+# public source, the same rule for all 24. A conditional pass counts from its
+# report. Each date is the report's publication date in UTC. Sources:
 #   41 gov.optimism.io/t/cycle-41-grants-council-report/10281
 #   42 gov.optimism.io/t/cycle-42-grants-report/10308
 #   43 gov.optimism.io/t/cycle-43-grants-council-report/10363
@@ -84,52 +84,14 @@ CYCLE_APPROVED = {
 }
 
 
-# Karma records a status change, not the Council's decision, and the two can be
-# weeks apart. Correcting that needs published evidence per grant, not a blanket
-# rule: a grant whose Karma date falls after its own cycle report may have been
-# a conditional pass that was confirmed later, in which case Karma is right and
-# the report is not. Only grants the reports show as already decided are listed
-# here. `_approval_date` warns about every other case instead of guessing.
-APPROVAL_OVERRIDES = {
-    # Cycle 41's report (2025-09-12) lists 40acres as "Passed"; Karma did not
-    # flip the record until 2025-10-02, the day the cycle 42 report went up.
-    # Left as Karma had it, the grant is approved two days *after* its OP had
-    # already reached the claim contract.
-    "APP-CS0S7GDN-MR3JI7": (dt.date(2025, 9, 12), "cycle 41 report"),
-}
-
-
-def _approval_date(karma: dict, cycle: str, grant_id: str) -> tuple[dt.date | None, str | None]:
-    """The approval date, and where it came from."""
-    override = APPROVAL_OVERRIDES.get(grant_id)
-    if override:
-        return override[0], override[1]
-    cycle_day = CYCLE_APPROVED.get(cycle)
-    karma_day = dt.date.fromisoformat(karma["approved_at"]) if karma.get("approved_at") else None
-    if karma_day and cycle_day and karma_day > cycle_day:
-        print(f"  note: {karma.get('grantee') or grant_id} is cycle {cycle}, whose report went up "
-              f"{cycle_day}, but Karma dates the approval {karma_day}. Using Karma. If that cycle's "
-              f"report shows an unconditional pass, add an override.")
-    if karma_day:
-        return karma_day, "karma"
-    return cycle_day, ("cycle report" if cycle_day else None)
-
-
 KARMA: dict = {}
 
 
 def karma_dates() -> dict:
     """Per-application dates from Karma (scripts/karma_dates.py), if fetched.
 
-    Karma knows when each application was created, and usually when it was
-    approved. Usually, because its `approved` status change is when someone
-    moved the record, not when the Council decided: 40acres sits in cycle 41
-    by its own Karma record and by the registry, yet its status flipped on
-    2025-10-02, the day the *cycle 42* report was published — three weeks
-    after the cycle 41 report had already listed it as passed. A grant cannot
-    have been approved after the report announcing it, so `_approval_date`
-    below treats the cycle report as the upper bound and Karma as the
-    refinement inside it."""
+    Only the creation date is used: it is the day the application was submitted.
+    Approval comes from the cycle reports (CYCLE_APPROVED), not from Karma."""
     if not KARMA_DATES.exists():
         return {}
     return json.loads(KARMA_DATES.read_text())
@@ -242,11 +204,18 @@ def build(directory: Path, grantees: dict, windows: dict) -> dict:
         if abs(float(sc["peak_delta_tvl_usd"]) - peak) > 1:
             raise SystemExit(f"{slug}: scorecard peak {sc['peak_delta_tvl_usd']} != curve peak {peak:.2f}")
 
-    delivered = registry._to_date(registry._cell(g, "initial_delivery_date"))
-    claimed = registry._to_date(registry._cell(g, "date_tx1"))
+    # "Delivered" is the day the grantee received the first tranche on-chain: the claim
+    # from the Hedgey contract, or a direct payment (registry tx1, written from Blockscout
+    # by the Apps Script). tx2 is the second tranche. The registry's initial_delivery_date
+    # is the tracker's own date; it is kept as context and feeds no figure.
+    delivered = registry._to_date(registry._cell(g, "date_tx1"))
+    delivered_second = registry._to_date(registry._cell(g, "date_tx2"))
+    tracker_delivery = registry._to_date(registry._cell(g, "initial_delivery_date"))
+    claimed = delivered
     cycle = str(registry._cell(g, "cycle") or "").strip()
     karma = (KARMA or {}).get(str(registry._cell(g, "grant_id") or "").strip(), {})
-    approved, approval_source = _approval_date(karma, cycle, grant_id)
+    approved = CYCLE_APPROVED.get(cycle)
+    approval_source = f"cycle {cycle} report" if approved else None
     created = dt.date.fromisoformat(karma["created"]) if karma.get("created") else None
     snapshot = registry._to_date(registry._cell(w, "snapshot"))
     op_at_claim = op_price(claimed) if claimed else None
@@ -265,18 +234,19 @@ def build(directory: Path, grantees: dict, windows: dict) -> dict:
         "snapshot": snapshot.isoformat() if snapshot else None,
         "days": days,
         "weeks": round(days / 7, 1),
-        "approved": approved.isoformat() if approved else None,
         "claimed": claimed.isoformat() if claimed else None,
         "cycle": cycle or None,
         "created": created.isoformat() if created else None,
         "approved": approved.isoformat() if approved else None,
         "approval_source": approval_source,
         "created_to_approval_days": (approved - created).days if (approved and created) else None,
-        "delivered_to_claim_contract": delivered.isoformat() if delivered else None,
+        "delivered": delivered.isoformat() if delivered else None,
+        "delivered_second": delivered_second.isoformat() if delivered_second else None,
+        "tracker_delivery_date": tracker_delivery.isoformat() if tracker_delivery else None,
         "approval_to_start_days": (start - approved).days if approved else None,
         "approval_to_delivery_days": (delivered - approved).days if (approved and delivered) else None,
         "delivery_to_start_days": (start - delivered).days if delivered else None,
-        "claim_to_start_days": (start - claimed).days if claimed else None,
+        "created_to_start_days": (start - created).days if created else None,
         "delta_tvl_usd": round(official_end, 2),
         "usd_per_op": round(official_end / budget, 2) if budget else None,
         "delta_tvl_at_snapshot_usd": _num(sc.get("delta_tvl_at_snapshot_usd")),
@@ -314,7 +284,10 @@ def cohort_stats(gs: list[dict]) -> dict:
     lag_del = [g["delivery_to_start_days"] for g in gs if g["delivery_to_start_days"] is not None]
     lag_pay = [g["approval_to_delivery_days"] for g in gs if g["approval_to_delivery_days"] is not None]
     lag_rev = [g["created_to_approval_days"] for g in gs if g["created_to_approval_days"] is not None]
-    claim_lag = [g["claim_to_start_days"] for g in gs if g["claim_to_start_days"] is not None]
+    lag_all = [g["created_to_start_days"] for g in gs if g["created_to_start_days"] is not None]
+    spread = lambda v: {"median": statistics.median(v) if v else None,
+                        "mean": round(statistics.mean(v), 1) if v else None,
+                        "min": min(v) if v else None, "max": max(v) if v else None, "n": len(v)}
     given_back = [(g["weeks"], g["share_of_peak_given_back"]) for g in gs
                   if g["share_of_peak_given_back"] is not None]
     count = lambda key: {"met": sum(1 for g in gs if g[key] is True),
@@ -354,20 +327,11 @@ def cohort_stats(gs: list[dict]) -> dict:
         "peak_day": {"median": statistics.median(g["peak_day"] for g in gs),
                      "median_position": round(statistics.median(peak_pos), 2),
                      "before_last_10pct": sum(1 for p in peak_pos if p < 0.9)},
-        "delivery_to_start_days": {"median": statistics.median(lag_del) if lag_del else None,
-                                   "mean": round(statistics.mean(lag_del), 1) if lag_del else None,
-                                   "n": len(lag_del)},
-        "created_to_approval_days": {"median": statistics.median(lag_rev) if lag_rev else None,
-                                     "mean": round(statistics.mean(lag_rev), 1) if lag_rev else None,
-                                     "n": len(lag_rev)},
-        "approval_to_delivery_days": {"median": statistics.median(lag_pay) if lag_pay else None,
-                                      "mean": round(statistics.mean(lag_pay), 1) if lag_pay else None,
-                                      "n": len(lag_pay)},
-        "approval_to_start_days": {"median": statistics.median(lag) if lag else None,
-                                   "mean": round(statistics.mean(lag), 1) if lag else None,
-                                   "n": len(lag)},
-        "claim_to_start_days": {"median": statistics.median(claim_lag) if claim_lag else None,
-                                "n": len(claim_lag)},
+        "created_to_approval_days": spread(lag_rev),
+        "approval_to_delivery_days": spread(lag_pay),
+        "delivery_to_start_days": spread(lag_del),
+        "created_to_start_days": spread(lag_all),
+        "approval_to_start_days": spread(lag),
         "spearman_weeks_vs_share_given_back": _spearman([w for w, _ in given_back],
                                                         [s for _, s in given_back]),
     }

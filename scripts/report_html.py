@@ -87,9 +87,9 @@ def build(cohort: dict, op_price: list) -> str:
             for x in order if x["peak_delta_tvl_usd"] > 0
         ],
         "flow": [
-            {"label": "Claimed by the 9 that ran a program", "value": 2210000, "color": C["plum"]},
-            {"label": "Claimed by grants that never ran one", "value": 340000, "color": C["coral"]},
-            {"label": "Delivered to the claim contract, never claimed", "value": 1268000, "color": C["butter"]},
+            {"label": "Delivered to the nine that ran a program", "value": 2210000, "color": C["plum"]},
+            {"label": "Delivered to grants that never ran one", "value": 340000, "color": C["coral"]},
+            {"label": "Sent to the claim contract, never claimed", "value": 1268000, "color": C["butter"]},
             {"label": "Never released", "value": 2472000, "color": C["secondary"]},
         ],
         "price": {"x": [p[0] for p in op_price], "y": [p[1] for p in op_price],
@@ -121,8 +121,24 @@ def build(cohort: dict, op_price: list) -> str:
         <td class="num">{x['weeks']:.0f} wk</td>
       </tr>""" for x in order)
 
+    # Timing figures the text quotes, straight from the cohort so they cannot drift.
+    def _rng(s):
+        lo, hi = s["min"], s["max"]
+        return f"−{abs(lo)} to {hi}" if lo < 0 else f"{lo}–{hi}"
+    stg = {k: c[k] for k in ("created_to_approval_days", "approval_to_delivery_days",
+                              "delivery_to_start_days", "created_to_start_days")}
+    stage = {
+        "app": f"{stg['created_to_approval_days']['median']:.0f}", "app_rng": _rng(stg["created_to_approval_days"]),
+        "deliv": f"{stg['approval_to_delivery_days']['median']:.0f}", "deliv_rng": _rng(stg["approval_to_delivery_days"]),
+        "live": f"{stg['delivery_to_start_days']['median']:.0f}", "live_rng": _rng(stg["delivery_to_start_days"]),
+        "live_max": f"{stg['delivery_to_start_days']['max']:.0f}",
+        "live_neg": ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][
+            sum(1 for x in g if x["delivery_to_start_days"] is not None and x["delivery_to_start_days"] < 0)],
+        "total": f"{stg['created_to_start_days']['median']:.0f}", "total_rng": _rng(stg["created_to_start_days"]),
+    }
+
     data_json = json.dumps(charts, separators=(",", ":"))
-    return TEMPLATE.format(c=C, s=SERIES, mark=MARK, rows=rows, data=data_json, cohort=c,
+    return TEMPLATE.format(c=C, s=SERIES, t=stage, mark=MARK, rows=rows, data=data_json, cohort=c,
                            repo=REPO, blob=BLOB,
                            cutoff=cohort["interim_cutoff"], generated=cohort["generated_at"][:10])
 
@@ -333,7 +349,7 @@ TEMPLATE = """<!doctype html>
   <h2>The short version</h2>
   <div class="keys">
     <div class="key" style="--accent: {c[coral]}"><span class="label">Observed ΔTVL</span>
-      <span class="n">+$8.00M</span><span class="t">in the targeted contracts across the nine programs, or $3.62 per OP claimed. Six of nine were positive.</span></div>
+      <span class="n">+$8.00M</span><span class="t">in the targeted contracts across the nine programs, or $3.62 per OP delivered. Six of nine were positive.</span></div>
     <div class="key" style="--accent: {c[lilac]}"><span class="label">Concentration</span>
       <span class="n">84%</span><span class="t">of the net total came from one grant, 40acres.finance. Of the positive movements alone it is 75.8%.</span></div>
     <div class="key" style="--accent: {c[mint]}"><span class="label">Milestones</span>
@@ -348,9 +364,9 @@ TEMPLATE = """<!doctype html>
   <div class="measure">
     <ul>
       <li><strong>Programs peak early and give it back.</strong> The median program peaked on day 56, which is 41% of the way in. Three of the five that met M1 were below that target again at their last reading: Extrafi when it closed, and Velodrome and Curve Lending at the cutoff.</li>
-      <li><strong>OP fell 55%</strong> between the average program start and the average program end. The OP behind these grants was worth $708k when claimed and $291k when the programs ended.</li>
-      <li><strong>Grantees were not the slow part.</strong> From application to the first day of incentives took a median of 71 days, of which the team's own launch step was a median of 15. Lesson 2 breaks it down. The year in the schedule was the allowance, not the work.</li>
-      <li><strong>Staging worked.</strong> 2.47M OP was never released because later tranches depended on progress. But 340k OP was claimed by grants that never ran anything.</li>
+      <li><strong>OP fell 55%</strong> between the average program start and the average program end. The OP behind these grants was worth $708k when delivered and $291k when the programs ended.</li>
+      <li><strong>Most of the wait came before the OP was delivered.</strong> From application to the first day of incentives took a median of {t[total]} days. In seven of the nine programs most of it passed before the OP reached the grantee, and the other two began before it did. Lesson 2 breaks it down. The year in the schedule was the allowance, not the work.</li>
+      <li><strong>Staging worked.</strong> 2.47M OP was never released because later tranches depended on progress. But 340k OP was delivered to grants that never ran anything.</li>
     </ul>
   </div>
 </section>
@@ -421,30 +437,32 @@ TEMPLATE = """<!doctype html>
   </div>
 
   <h3>2 · Twelve months is the allowance; three is the useful deadline</h3>
-  <p class="measure">Every grant in this season was approved between 12 September and 17 December
-  2025: 40acres in September, and the other 23 between 2 October and 17 December. Teams had about a year to run the work end to end. A year on, several approved grants
+  <p class="measure">Every grant in this season was approved between 12 September and 19 December
+  2025: 40acres in September, and the other 23 between 2 October and 19 December. Teams had about a year to run the work end to end. A year on, several approved grants
   still have nothing to show, while the ones that delivered did not need the year. From the
-  application going in to the first day of incentives the median was <strong>71 days</strong>, and
-  the team's own step had a median of 15. Each stage below is the median of its own distribution,
-  so the three do not sum to the 71 in the last row. The rows cover the same nine grants. A negative figure
+  application going in to the first day of incentives the median was <strong>{t[total]} days</strong>:
+  {t[app]} to the decision, {t[deliv]} more until the OP reached the grantee, and {t[live]} from delivery to launch.
+  Each stage is the median of its own distribution, so the three do not sum to the {t[total]} in the last row.
+  The rows cover the same nine grants. "Delivered" means the first tranche reached the grantee
+  on-chain, so the middle stage includes however long the grantee took to claim. A negative figure
   means incentives began before the OP was delivered.</p>
   <div class="tablewrap"><table>
     <thead><tr><th>Stage</th><th class="num">Median</th><th class="num">Range</th></tr></thead>
     <tbody>
-      <tr><th scope="row">Application submitted → approved</th><td class="num">35 days</td><td class="num">15–52</td></tr>
-      <tr><th scope="row">Approved → OP delivered</th><td class="num">34 days</td><td class="num">18–54</td></tr>
-      <tr><th scope="row">OP delivered → incentives live</th><td class="num">15 days</td><td class="num">−22 to 136</td></tr>
-      <tr><th scope="row">Application → incentives live</th><td class="num">71 days</td><td class="num">51–218</td></tr>
+      <tr><th scope="row">Application submitted → approved</th><td class="num">{t[app]} days</td><td class="num">{t[app_rng]}</td></tr>
+      <tr><th scope="row">Approved → OP delivered</th><td class="num">{t[deliv]} days</td><td class="num">{t[deliv_rng]}</td></tr>
+      <tr><th scope="row">OP delivered → incentives live</th><td class="num">{t[live]} days</td><td class="num">{t[live_rng]}</td></tr>
+      <tr><th scope="row">Application → incentives live</th><td class="num">{t[total]} days</td><td class="num">{t[total_rng]}</td></tr>
     </tbody>
   </table></div>
   <p class="measure"><strong>40acres is the model case:</strong> application created Aug 25, 2025,
   announced as approved in the <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">Cycle
-  41 report</a> on Sep 12, OP delivered Sep 30, claimed Oct 7, distribution
+  41 report</a> on Sep 12, OP delivered Oct 7, distribution
   started Oct 15, program finished Jan 27, 2026. That is 51
   days from application to launch, and the best result in the cohort. At the other end, Curve
   Lending took 218 days. <strong>Give three months from approval to launch, not twelve</strong>, with a
-  deadline for the final report. Count the disbursement inside those three months, since it
-  took as long as the review itself.</p>
+  deadline for the final report. Count the delivery inside those three months, since getting the OP
+  delivered took a median of {t[deliv]} days, against {t[app]} for the decision itself.</p>
 
   <h3>3 · The extra weeks bought decay, not liquidity</h3>
   <p class="measure">Across all nine programs, including the two still running, the median length was 16.6 weeks, from 9 to 31. But the peak landed at a
@@ -476,8 +494,8 @@ TEMPLATE = """<!doctype html>
   <div class="measure">
     <ul>
       <li><strong>2.47M OP was never released</strong>, because later tranches were conditional on progress.</li>
-      <li><strong>340k OP was claimed by grants that never ran a program.</strong> A 20% first tranche instead of 40% would have exposed about half of it.</li>
-      <li><strong>1.27M OP was delivered to the claim contract and never claimed by the grantee:</strong> Morpho 600k, Tydro 600k, LiqPass 32k, Strands 28k, NEUS 8k. None of it has left the contract, which is visible on-chain. Treat the 1.27M as potentially recoverable and worth pursuing, not as recovered. LiqPass was withdrawn outright.</li>
+      <li><strong>340k OP was delivered to grants that never ran a program.</strong> A 20% first tranche instead of 40% would have exposed about half of it.</li>
+      <li><strong>1.27M OP was sent to the claim contract and never claimed by the grantee:</strong> Morpho 600k, Tydro 600k, LiqPass 32k, Strands 28k, NEUS 8k. None of it has left the contract, which is visible on-chain. Treat the 1.27M as potentially recoverable and worth pursuing, not as recovered. LiqPass was withdrawn outright.</li>
     </ul>
     <p>Both councils were dissolved on 15 July 2026. The remaining milestones are not unattended:
     the approved <a href="https://vote.optimism.io/proposals/94653586928704829987664319556957069435634532914401865187521227109996000544034">dissolution
@@ -486,7 +504,7 @@ TEMPLATE = """<!doctype html>
     settle is who decides what happens to OP that was released and never used. <strong>That is
     still an opening for the community at large:</strong> watch whether these programs are
     delivered, and press for recovery where they are not. <strong>The fifteen grants that never ran
-    a program were approved between 16 October and 17 December 2025</strong>, so each reaches one
+    a program were approved between 23 October and 19 December 2025</strong>, so each reaches one
     year between October and December 2026: none has passed that mark yet, and all of them do
     within three months.</p>
   </div>
@@ -558,7 +576,7 @@ TEMPLATE = """<!doctype html>
   <div class="measure">
     <ul>
       <li><strong>Metric.</strong> ΔTVL = Σ (quantity at incentive end − quantity at incentive start) × token price at the end date, over the contracts each grant incentivized. The formula is the one in the <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>.</li>
-      <li><strong>The window here is not the official one.</strong> The S8 methodology opens the window at the date of actual grant delivery and closes it at the earlier of the incentive close and the end of Season 8, which the <a href="https://gov.optimism.io/t/guide-to-season-8/10001">Guide to Season 8</a> gives as 24 December 2025. This review opens it on the first day incentives were actually paid and closes it on the last, with no season cap. Both choices move the figures. Opening at delivery would count time before a program was paying for liquidity: delivery ran a median of 15 days ahead of the first incentive day here, and 136 days ahead for Curve Lending. The cap is the larger difference. All nine incentive windows ended after 24 December 2025, and Velodrome and Curve Lending began after it, so applying the cap would cut every program short and leave those two with no incentive days inside the window. The daily series behind each figure are in the repository, so the same measurement can be run over the official window.</li>
+      <li><strong>The window here is not the official one.</strong> The S8 methodology opens the window at the date of actual grant delivery and closes it at the earlier of the incentive close and the end of Season 8, which the <a href="https://gov.optimism.io/t/guide-to-season-8/10001">Guide to Season 8</a> gives as 24 December 2025. This review opens it on the first day incentives were actually paid and closes it on the last, with no season cap. Both choices move the figures. Opening at delivery would misplace the window for several programs: the first tranche reached the grantee a median of {t[live]} days before the first incentive day, but {t[live_max]} days before for Curve Lending, and after it for {t[live_neg]} programs whose teams began incentives before claiming. The cap is the larger difference. All nine incentive windows ended after 24 December 2025, and Velodrome and Curve Lending began after it, so applying the cap would cut every program short and leave those two with no incentive days inside the window. The daily series behind each figure are in the repository, so the same measurement can be run over the official window.</li>
       <li><strong>Scope is targeted, contract by contract, not protocol-wide.</strong> Each grant named the contracts it would incentivize, and only those are measured. A protocol's headline TVL moves for reasons that have nothing to do with a grant, so counting all of it would credit or blame a program for liquidity it never touched. The cost of this choice is that it misses any spillover into the rest of the protocol. Oku has no contract of its own, so it is measured as the Morpho vault position of the 67 wallets it paid.</li>
       <li><strong>Quantities are valued at one fixed date, not at each day's price.</strong> Lesson 6 shows how far the two readings can differ.</li>
       <li><strong>A milestone counts as met if the target was reached on any day inside the window.</strong> Lesson 1 explains why.</li>
@@ -572,9 +590,9 @@ TEMPLATE = """<!doctype html>
     <summary>What the records can and cannot show</summary>
     <div class="measure">
     <ul>
-      <li><strong>How OP reached grantees.</strong> The Milestones and Metrics Council's <a href="https://optimism.blockscout.com/address/0xC0603610C7F923c93b18B48eF63F0d733CB8C89e">multisig</a> sent each grant's OP to the <a href="https://optimism.blockscout.com/address/0x8A2725a6f04816A5274dDD9FEaDd3bd0C253C1A6">Hedgey ClaimCampaigns contract</a>, and each grantee then had to claim it there. Claims are read on Blockscout from that contract. One payment did not go through it: Curve Lending's second, which the multisig sent directly and which is counted with the claims. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
-      <li><strong>Delivery dates come from the tracker.</strong> Each grant's delivery date is the one in the Foundation's <a href="https://docs.google.com/spreadsheets/d/1Ul8iMTsOFUKUmqz6MK0zpgt8Ki8tFtoWKGlwXj-Op34/edit">public delivery tracker</a>. The transfer into the claim contract can be later than that date, by a few days for most grants and by more for two, so the stage timings that use it are the tracker's view of delivery.</li>
-      <li><strong>Approval dates come from Karma, with one correction.</strong> Application and approval dates are Karma's own records for each application. One of them is later than the Council's own announcement. 40acres is a cycle 41 grant, and the <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">Cycle 41 report</a> of 12 September already lists it as passed, yet Karma's status changed on 2 October. Left as recorded, the grant would be approved two days after its OP was delivered. This page uses 12 September for 40acres and Karma's date for every other grant. Curve Lending also has a Karma date (16 October) later than its cycle's report (2 October), but that report lists it as a conditional pass pending confirmation, so the later date is kept. The four stage medians are the same either way. Only 40acres' own split and the approved-to-delivery range change.</li>
+      <li><strong>How OP reached grantees.</strong> The Milestones and Metrics Council's <a href="https://optimism.blockscout.com/address/0xC0603610C7F923c93b18B48eF63F0d733CB8C89e">multisig</a> sent each grant's OP to the <a href="https://optimism.blockscout.com/address/0x8A2725a6f04816A5274dDD9FEaDd3bd0C253C1A6">Hedgey ClaimCampaigns contract</a>, and each grantee then had to claim it there. One payment did not go through the contract: Curve Lending's second, which the multisig sent directly and which counts as a delivery.</li>
+      <li><strong>Delivery dates are on-chain.</strong> A grant is dated as delivered on the day its first tranche reached the grantee, read from Blockscout as the transfer out of the claim contract. That is later than the day the multisig sent the OP into it, because it includes however long the grantee took to claim. The Foundation's <a href="https://docs.google.com/spreadsheets/d/1Ul8iMTsOFUKUmqz6MK0zpgt8Ki8tFtoWKGlwXj-Op34/edit">public delivery tracker</a> keeps its own initial delivery date, which is not used here. Payments made after the councils were dissolved, or routed another way, may be missing.</li>
+      <li><strong>Approval dates are the Council's cycle-report dates.</strong> Each grant is dated to the report of the cycle that announced it, listed under Sources, so every approval rests on one public source and one rule. A conditional pass counts from its report. Karma supplies the application dates only: its own approval field disagrees with the reports for some grants, and 40acres shows why. The Cycle 41 report of 12 September already lists it as passed, but Karma dates its approval 2 October.</li>
       <li><strong>Co-incentives are excluded.</strong> Teams sized them in USD at application time, and I did not find a way to verify how much was actually deployed. There may well be one. I did not pursue it.</li>
     </ul>
   </div>
@@ -599,7 +617,7 @@ TEMPLATE = """<!doctype html>
       would have been too slow.</li>
       <li><strong>DefiLlama:</strong> protocol TVL series and historical token prices, including the
       fixed end-date prices the S8 formula uses.</li>
-      <li><strong>Karma API:</strong> each application's real submission and approval dates.</li>
+      <li><strong>Karma API:</strong> each application's submission date.</li>
       <li><strong>The registry is a spreadsheet:</strong> grants, windows and scope contracts live
       in Google Sheets and are read as CSV at run time, so a human can correct a date without
       touching code. Apps Script calls Blockscout inside the sheet to date each payment,
@@ -619,7 +637,7 @@ TEMPLATE = """<!doctype html>
     <div class="measure">
     <ul>
       <li><strong>Code and measurements.</strong> The <a href="{repo}">pipeline repository</a>, including the per-grantee measurements in <code>output/</code> and <code>data/</code>, the Dune queries under <code>scripts/dune/</code>, and <a href="{blob}/scripts/cohort_summary.py"><code>cohort_summary.py</code></a>, which turns them into every figure on this page.</li>
-      <li><strong>Council decisions and budget.</strong> The Season 8 cycle reports: <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">41</a>, <a href="https://gov.optimism.io/t/cycle-42-grants-report/10308">42</a>, <a href="https://gov.optimism.io/t/cycle-43-grants-council-report/10363">43</a>, <a href="https://gov.optimism.io/t/cycle-44-grants-report/10410">44</a> and the <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">Cycle 46 and Season 8 final report</a>, which together account for all 24 approvals and the full 6.29M OP.</li>
+      <li><strong>Council decisions and budget.</strong> The Season 8 cycle reports: <a href="https://gov.optimism.io/t/cycle-41-grants-council-report/10281">41</a>, <a href="https://gov.optimism.io/t/cycle-42-grants-report/10308">42</a>, <a href="https://gov.optimism.io/t/cycle-43-grants-council-report/10363">43</a>, <a href="https://gov.optimism.io/t/cycle-44-grants-report/10410">44</a> and the <a href="https://gov.optimism.io/t/cycle-46-and-season-8-final-grants-report/10503">Cycle 46 and Season 8 final report</a>, which together account for all 24 approvals and the full 6.29M OP, and date each approval.</li>
       <li><strong>Payments.</strong> The Foundation's <a href="https://docs.google.com/spreadsheets/d/1Ul8iMTsOFUKUmqz6MK0zpgt8Ki8tFtoWKGlwXj-Op34/edit">public delivery tracker</a>, cross-checked on-chain.</li>
       <li><strong>Method.</strong> The <a href="https://gov.optimism.io/t/s8-impact-measurement-methodology/10219">S8 Impact Measurement Methodology</a>, whose formula this review uses and whose window it does not; the difference is set out above.</li>
       <li><strong>Council dissolution.</strong> The <a href="https://vote.optimism.io/proposals/94653586928704829987664319556957069435634532914401865187521227109996000544034">Milestones and Metrics Council</a> and <a href="https://vote.optimism.io/proposals/17610825935142917870367542494361266033681870435033393450622576978064079317264">Grants Council</a> dissolution proposals, both approved 15 July 2026.</li>
